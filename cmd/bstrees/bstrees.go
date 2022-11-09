@@ -1,28 +1,28 @@
 package main
 
 import (
-	"bstrees/pkg/treap/vanilla"
-	"bstrees/pkg/util"
+	"bstrees/pkg/avl"
+	"bstrees/pkg/util/console"
 	"bufio"
 	"fmt"
 	"os"
 )
 
 func main() {
-	tree := vanilla.New[int]()
+	tree := avl.New[int]()
 	gin := bufio.NewReader(os.Stdin)
-	n, err := util.Read[int](gin)
+	n, err := console.Read[int](gin)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	for i := 0; i < n; i++ {
-		opt, err := util.Read[int](gin)
+		opt, err := console.Read[int](gin)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		value, err := util.Read[int](gin)
+		value, err := console.Read[int](gin)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
