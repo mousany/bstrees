@@ -67,24 +67,24 @@ func Kth[T number.Number](root *node.TreapNode[T], k uint32) *node.TreapNode[T] 
 	return nil
 }
 
-func (this *RotatelessTreap[T]) Insert(value T) {
-	left, right := Split(this.Root, value)
-	this.Root = Merge(Merge(left, node.New(value)), right)
+func (thisTree *RotatelessTreap[T]) Insert(value T) {
+	left, right := Split(thisTree.Root, value)
+	thisTree.Root = Merge(Merge(left, node.New(value)), right)
 }
 
-func (this *RotatelessTreap[T]) Delete(value T) {
-	left, right := Split(this.Root, value)
+func (thisTree *RotatelessTreap[T]) Delete(value T) {
+	left, right := Split(thisTree.Root, value)
 	left, mid := Split(left, value-1)
 	if mid != nil {
 		mid = Merge(mid.Left, mid.Right)
 	}
-	this.Root = Merge(Merge(left, mid), right)
+	thisTree.Root = Merge(Merge(left, mid), right)
 }
 
-func (this *RotatelessTreap[T]) Rank(value T) uint32 {
-	left, right := Split(this.Root, value-1)
+func (thisTree *RotatelessTreap[T]) Rank(value T) uint32 {
+	left, right := Split(thisTree.Root, value-1)
 	defer func() {
-		this.Root = Merge(left, right)
+		thisTree.Root = Merge(left, right)
 	}()
 	if left == nil {
 		return 1
@@ -92,33 +92,33 @@ func (this *RotatelessTreap[T]) Rank(value T) uint32 {
 	return left.Size + 1
 }
 
-func (this *RotatelessTreap[T]) Kth(k uint32) (T, error) {
-	result := Kth(this.Root, k)
+func (thisTree *RotatelessTreap[T]) Kth(k uint32) (T, error) {
+	result := Kth(thisTree.Root, k)
 	if result == nil {
 		return T(0), errors.New("k is out of range")
 	}
 	return result.Value, nil
 }
 
-func (this *RotatelessTreap[T]) Size() uint32 {
-	if this.Root == nil {
+func (thisTree *RotatelessTreap[T]) Size() uint32 {
+	if thisTree.Root == nil {
 		return 0
 	}
-	return this.Root.Size
+	return thisTree.Root.Size
 }
 
-func (this *RotatelessTreap[T]) Empty() bool {
-	return this.Root == nil
+func (thisTree *RotatelessTreap[T]) Empty() bool {
+	return thisTree.Root == nil
 }
 
-func (this *RotatelessTreap[T]) Clear() {
-	this.Root = nil
+func (thisTree *RotatelessTreap[T]) Clear() {
+	thisTree.Root = nil
 }
 
-func (this *RotatelessTreap[T]) Prev(value T) (T, error) {
-	left, right := Split(this.Root, value-1)
+func (thisTree *RotatelessTreap[T]) Prev(value T) (T, error) {
+	left, right := Split(thisTree.Root, value-1)
 	defer func() {
-		this.Root = Merge(left, right)
+		thisTree.Root = Merge(left, right)
 	}()
 	result := Kth(left, left.Size)
 	if result == nil {
@@ -127,10 +127,10 @@ func (this *RotatelessTreap[T]) Prev(value T) (T, error) {
 	return result.Value, nil
 }
 
-func (this *RotatelessTreap[T]) Next(value T) (T, error) {
-	left, right := Split(this.Root, value)
+func (thisTree *RotatelessTreap[T]) Next(value T) (T, error) {
+	left, right := Split(thisTree.Root, value)
 	defer func() {
-		this.Root = Merge(left, right)
+		thisTree.Root = Merge(left, right)
 	}()
 	result := Kth(right, 1)
 	if result == nil {

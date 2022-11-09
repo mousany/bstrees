@@ -69,8 +69,8 @@ func Insert[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T
 	return root
 }
 
-func (this *VanillaTreap[T]) Insert(value T) {
-	this.Root = Insert(this.Root, value)
+func (thisTree *VanillaTreap[T]) Insert(value T) {
+	thisTree.Root = Insert(thisTree.Root, value)
 }
 
 func Delete[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] {
@@ -100,31 +100,31 @@ func Delete[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T
 	return root
 }
 
-func (this *VanillaTreap[T]) Delete(value T) {
-	this.Root = Delete(this.Root, value)
+func (thisTree *VanillaTreap[T]) Delete(value T) {
+	thisTree.Root = Delete(thisTree.Root, value)
 }
 
-func (this *VanillaTreap[T]) Kth(k uint32) (T, error) {
-	result := Kth(this.Root, k)
+func (thisTree *VanillaTreap[T]) Kth(k uint32) (T, error) {
+	result := Kth(thisTree.Root, k)
 	if result == nil {
 		return T(0), errors.New("k is out of range")
 	}
 	return result.Value, nil
 }
 
-func (this *VanillaTreap[T]) Size() uint32 {
-	if this.Root == nil {
+func (thisTree *VanillaTreap[T]) Size() uint32 {
+	if thisTree.Root == nil {
 		return 0
 	}
-	return this.Root.Size
+	return thisTree.Root.Size
 }
 
-func (this *VanillaTreap[T]) Empty() bool {
-	return this.Root == nil
+func (thisTree *VanillaTreap[T]) Empty() bool {
+	return thisTree.Root == nil
 }
 
-func (this *VanillaTreap[T]) Clear() {
-	this.Root = nil
+func (thisTree *VanillaTreap[T]) Clear() {
+	thisTree.Root = nil
 }
 
 func Rank[T number.Number](root *node.TreapNode[T], value T) uint32 {
@@ -140,11 +140,11 @@ func Rank[T number.Number](root *node.TreapNode[T], value T) uint32 {
 			root = root.Left
 		}
 	}
-	return rank
+	return rank + 1
 }
 
-func (this *VanillaTreap[T]) Rank(value T) uint32 {
-	return Rank(this.Root, value)
+func (thisTree *VanillaTreap[T]) Rank(value T) uint32 {
+	return Rank(thisTree.Root, value)
 }
 
 func Prev[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] {
@@ -160,8 +160,8 @@ func Prev[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] 
 	return result
 }
 
-func (this *VanillaTreap[T]) Prev(value T) (T, error) {
-	result := Prev(this.Root, value)
+func (thisTree *VanillaTreap[T]) Prev(value T) (T, error) {
+	result := Prev(thisTree.Root, value)
 	if result == nil {
 		return T(0), errors.New("no prev value")
 	}
@@ -181,8 +181,8 @@ func Next[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] 
 	return result
 }
 
-func (this *VanillaTreap[T]) Next(value T) (T, error) {
-	result := Next(this.Root, value)
+func (thisTree *VanillaTreap[T]) Next(value T) (T, error) {
+	result := Next(thisTree.Root, value)
 	if result == nil {
 		return T(0), errors.New("no next value")
 	}
