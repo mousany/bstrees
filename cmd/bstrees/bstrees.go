@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bstrees/pkg/avl"
+	"bstrees/pkg/avltree"
 	"bstrees/pkg/util/console"
 	"bufio"
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	tree := avl.New[int]()
+	tree := avltree.New[int]()
 	gin := bufio.NewReader(os.Stdin)
 	n, err := console.Read[int](gin)
 	if err != nil {

@@ -1,17 +1,17 @@
-package avl
+package avltree
 
 import (
-	"bstrees/pkg/avl/node"
+	"bstrees/pkg/avltree/node"
 	"bstrees/pkg/errors"
 	"bstrees/pkg/trait/ordered"
 )
 
-type AVL[T ordered.Ordered] struct {
+type AVLTree[T ordered.Ordered] struct {
 	Root *node.AVLNode[T]
 }
 
-func New[T ordered.Ordered]() *AVL[T] {
-	return &AVL[T]{Root: nil}
+func New[T ordered.Ordered]() *AVLTree[T] {
+	return &AVLTree[T]{Root: nil}
 }
 
 func LeftRotate[T ordered.Ordered](root *node.AVLNode[T]) *node.AVLNode[T] {
@@ -105,7 +105,7 @@ func Insert[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] 
 	return Balance(root)
 }
 
-func (thisTree *AVL[T]) Insert(value T) {
+func (thisTree *AVLTree[T]) Insert(value T) {
 	thisTree.Root = Insert(thisTree.Root, value)
 }
 
@@ -132,33 +132,33 @@ func Delete[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] 
 	return Balance(root)
 }
 
-func (thisTree *AVL[T]) Delete(value T) {
+func (thisTree *AVLTree[T]) Delete(value T) {
 	thisTree.Root = Delete(thisTree.Root, value)
 }
 
-func (thisTree *AVL[T]) Size() uint32 {
+func (thisTree *AVLTree[T]) Size() uint32 {
 	if thisTree.Root == nil {
 		return 0
 	}
 	return thisTree.Root.Size
 }
 
-func (thisTree *AVL[T]) Height() int32 {
+func (thisTree *AVLTree[T]) Height() int32 {
 	if thisTree.Root == nil {
 		return -1
 	}
 	return thisTree.Root.Height
 }
 
-func (thisTree *AVL[T]) Kth(k uint32) (T, error) {
+func (thisTree *AVLTree[T]) Kth(k uint32) (T, error) {
 	return Kth(thisTree.Root, k)
 }
 
-func (thisTree *AVL[T]) Empty() bool {
+func (thisTree *AVLTree[T]) Empty() bool {
 	return thisTree.Root == nil
 }
 
-func (thisTree *AVL[T]) Clear() {
+func (thisTree *AVLTree[T]) Clear() {
 	thisTree.Root = nil
 }
 
@@ -178,7 +178,7 @@ func Rank[T ordered.Ordered](root *node.AVLNode[T], value T) uint32 {
 	return rank + 1
 }
 
-func (thisTree *AVL[T]) Rank(value T) uint32 {
+func (thisTree *AVLTree[T]) Rank(value T) uint32 {
 	return Rank(thisTree.Root, value)
 }
 
@@ -195,7 +195,7 @@ func Prev[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] {
 	return result
 }
 
-func (thisTree *AVL[T]) Prev(value T) (T, error) {
+func (thisTree *AVLTree[T]) Prev(value T) (T, error) {
 	prev := Prev(thisTree.Root, value)
 	if prev == nil {
 		return T(rune(0)), errors.ErrNoPrevValue
@@ -216,7 +216,7 @@ func Next[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] {
 	return result
 }
 
-func (thisTree *AVL[T]) Next(value T) (T, error) {
+func (thisTree *AVLTree[T]) Next(value T) (T, error) {
 	next := Next(thisTree.Root, value)
 	if next == nil {
 		return T(rune(0)), errors.ErrNoNextValue
