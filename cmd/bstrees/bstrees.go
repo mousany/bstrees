@@ -1,32 +1,29 @@
 package main
 
 import (
-	"bstrees/pkg/avltree"
+	"bstrees/pkg/rbtree"
+	"bstrees/pkg/trait/number"
 	"bstrees/pkg/util/console"
 	"bufio"
 	"fmt"
 	"os"
 )
 
-func main() {
-	tree := avltree.New[int]()
-	gin := bufio.NewReader(os.Stdin)
-	n, err := console.Read[int](gin)
+func ReadWithPanic[T number.Integer](gin *bufio.Reader) T {
+	value, err := console.Read[T](gin)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		panic(err)
 	}
+	return value
+}
+
+func main() {
+	tree := rbtree.New[int]()
+	gin := bufio.NewReader(os.Stdin)
+	n := ReadWithPanic[int](gin)
 	for i := 0; i < n; i++ {
-		opt, err := console.Read[int](gin)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		value, err := console.Read[int](gin)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		opt := ReadWithPanic[int](gin)
+		value := ReadWithPanic[int](gin)
 		switch opt {
 		case 1:
 			tree.Insert(value)
@@ -61,6 +58,9 @@ func main() {
 				}
 				fmt.Println(kth)
 			}
+		}
+		if opt == 1 || opt == 2 {
+			tree.Print()
 		}
 	}
 }

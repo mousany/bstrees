@@ -15,7 +15,7 @@ type RBNode[T ordered.Ordered] struct {
 	Right  *RBNode[T]
 	Color  RBColor
 	Size   uint32     // Size of subtree, unnecessary if you don't need kth element
-	Father *RBNode[T] // Not necessary, but easier to implement
+	// Father *RBNode[T] // Not necessary, but easier to implement
 }
 
 func New[T ordered.Ordered](value T) *RBNode[T] {

@@ -7,60 +7,57 @@ import (
 	"os"
 )
 
-func Min(args ...int32) int32 {
-	min := args[0]
-	for _, arg := range args {
-		if arg < min {
-			min = arg
-		}
-	}
-	return min
+type RBColor bool
+
+const (
+	Red   RBColor = true
+	Black RBColor = false
+)
+
+type RBNode struct {
+	Value int
+	Left  *RBNode
+	Right *RBNode
+	Color RBColor
+	Size  uint32 // Size of subtree, unnecessary if you don'int need kth element
+	// Father *RBNode // Not necessary, but easier to implement
 }
 
-func Max(args ...int32) int32 {
-	max := args[0]
-	for _, arg := range args {
-		if arg > max {
-			max = arg
-		}
-	}
-	return max
+func NewNode(value int) *RBNode {
+	return &RBNode{Value: value, Left: nil, Right: nil, Color: Red, Size: 1}
 }
 
-type AVLNode struct {
-	Value  int
-	Left   *AVLNode
-	Right  *AVLNode
-	Height int32  // Height of the node
-	Size   uint32 // Size of subtree, unnecessary if you don'int need kth element
-}
-
-func NewNode(value int) *AVLNode {
-	return &AVLNode{Value: value, Left: nil, Right: nil, Height: 0, Size: 1}
-}
-
-func (thisNode *AVLNode) Update() {
-	thisNode.Height = 0
+func (thisNode *RBNode) Update() {
 	thisNode.Size = 1
 	if thisNode.Left != nil {
-		thisNode.Height = Max(thisNode.Height, thisNode.Left.Height+1)
 		thisNode.Size += thisNode.Left.Size
 	}
 	if thisNode.Right != nil {
-		thisNode.Height = Max(thisNode.Height, thisNode.Right.Height+1)
 		thisNode.Size += thisNode.Right.Size
 	}
 }
 
-type AVL struct {
-	Root *AVLNode
+func (thisNode *RBNode) Red() bool {
+	return thisNode.Color == Red
 }
 
-func New() *AVL {
-	return &AVL{Root: nil}
+func (thisNode *RBNode) Black() bool {
+	return thisNode.Color == Black
 }
 
-func LeftRotate(root *AVLNode) *AVLNode {
+func (thisNode *RBNode) Full() bool {
+	return thisNode.Left != nil && thisNode.Right != nil
+}
+
+type RBTree struct {
+	Root *RBNode
+}
+
+func New() *RBTree {
+	return &RBTree{Root: nil}
+}
+
+func LeftRotate(root *RBNode) *RBNode {
 	right := root.Right
 	root.Right = right.Left
 	right.Left = root
@@ -69,7 +66,7 @@ func LeftRotate(root *AVLNode) *AVLNode {
 	return right
 }
 
-func RightRotate(root *AVLNode) *AVLNode {
+func RightRotate(root *RBNode) *RBNode {
 	left := root.Left
 	root.Left = left.Right
 	left.Right = root
@@ -78,49 +75,7 @@ func RightRotate(root *AVLNode) *AVLNode {
 	return left
 }
 
-func Balance(root *AVLNode) *AVLNode {
-	leftHeight := int32(-1)
-	if root.Left != nil {
-		leftHeight = root.Left.Height
-	}
-	rightHeight := int32(-1)
-	if root.Right != nil {
-		rightHeight = root.Right.Height
-	}
-	if leftHeight > rightHeight+1 {
-		left := root.Left
-		leftLeftHeight := int32(-1)
-		if left.Left != nil {
-			leftLeftHeight = left.Left.Height
-		}
-		leftRightHeight := int32(-1)
-		if left.Right != nil {
-			leftRightHeight = left.Right.Height
-		}
-		if leftLeftHeight < leftRightHeight {
-			root.Left = LeftRotate(left)
-		}
-		ret := RightRotate(root)
-		return ret
-	} else if rightHeight > leftHeight+1 {
-		right := root.Right
-		rightLeftHeight := int32(-1)
-		if right.Left != nil {
-			rightLeftHeight = right.Left.Height
-		}
-		rightRightHeight := int32(-1)
-		if right.Right != nil {
-			rightRightHeight = right.Right.Height
-		}
-		if rightRightHeight < rightLeftHeight {
-			root.Right = RightRotate(right)
-		}
-		return LeftRotate(root)
-	}
-	return root
-}
-
-func Kth(root *AVLNode, k uint32) (int, error) {
+func Kth(root *RBNode, k uint32) (int, error) {
 	for root != nil {
 		leftSize := uint32(0)
 		if root.Left != nil {
@@ -138,77 +93,146 @@ func Kth(root *AVLNode, k uint32) (int, error) {
 	return int(rune(0)), errors.New("k is out of range")
 }
 
-func Insert(root *AVLNode, value int) *AVLNode {
-	if root == nil {
-		return NewNode(value)
-	}
-	if value < root.Value {
-		root.Left = Insert(root.Left, value)
+func Reorient(grandpa, father, me *RBNode) (*RBNode, *RBNode) {
+	if grandpa.Left == father {
+		grandpa.Color = Red
+		father.Color = Black
+		if father.Right == me {
+			father = LeftRotate(father)
+		}
+		_ = RightRotate(grandpa)
 	} else {
-		root.Right = Insert(root.Right, value)
+		grandpa.Color = Red
+		father.Color = Black
+		if father.Left == me {
+			father = RightRotate(father)
+		}
+		_ = LeftRotate(grandpa)
 	}
-	root.Update()
-	return Balance(root)
+	return father, me
 }
 
-func (thisTree *AVL) Insert(value int) {
-	thisTree.Root = Insert(thisTree.Root, value)
-}
-
-func Delete(root *AVLNode, value int) *AVLNode {
-	if root == nil {
-		return nil
-	}
-	if value < root.Value {
-		root.Left = Delete(root.Left, value)
-	} else if root.Value < value {
-		root.Right = Delete(root.Right, value)
-	} else {
-		if root.Left == nil {
-			return root.Right
-		} else if root.Right == nil {
-			return root.Left
-		} else {
-			min, _ := Kth(root.Right, 1) // root.Right is not nil, so this will not fail
-			root.Value = min
-			root.Right = Delete(root.Right, min)
+func FlipColor(root *RBNode) {
+	if root != nil {
+		root.Color = RBColor(!root.Color)
+		if root.Left != nil {
+			root.Left.Color = RBColor(!root.Left.Color)
+		}
+		if root.Right != nil {
+			root.Right.Color = RBColor(!root.Right.Color)
 		}
 	}
-	root.Update()
-	return Balance(root)
 }
 
-func (thisTree *AVL) Delete(value int) {
-	thisTree.Root = Delete(thisTree.Root, value)
+func Insert(root *RBNode, value int) *RBNode {
+	grandpa_ptr, father_ptr, me_ptr := (**RBNode)(nil), (**RBNode)(nil), &root
+	for *me_ptr != nil {
+		if (*me_ptr).Full() && (*me_ptr).Left.Red() && (*me_ptr).Right.Red() {
+			FlipColor(*me_ptr)
+		}
+		if grandpa_ptr != nil && father_ptr != nil && (*father_ptr).Red() && (*me_ptr).Red() {
+			father, me := Reorient(*grandpa_ptr, *father_ptr, *me_ptr)
+			*grandpa_ptr = father
+			father_ptr = grandpa_ptr
+			if father.Left == me {
+				me_ptr = &father.Left
+			} else {
+				me_ptr = &father.Right
+			}
+		}
+		grandpa_ptr = father_ptr
+		father_ptr = me_ptr
+		if value < (*me_ptr).Value {
+			me_ptr = &(*me_ptr).Left
+		} else {
+			me_ptr = &(*me_ptr).Right
+		}
+	}
+	*me_ptr = NewNode(value)
+	if grandpa_ptr != nil && father_ptr != nil {
+		// fmt.Println((*grandpa_ptr).Value, (*grandpa_ptr).Color, (*father_ptr).Value, (*father_ptr).Color, (*me_ptr).Value, (*me_ptr).Color)
+		if (*father_ptr).Red() && (*me_ptr).Red() {
+			father, _ := Reorient(*grandpa_ptr, *father_ptr, *me_ptr)
+			*grandpa_ptr = father
+		}
+	}
+	if root.Red() {
+		root.Color = Black
+	}
+	return root
 }
 
-func (thisTree *AVL) Size() uint32 {
+func (tree *RBTree) Insert(value int) {
+	tree.Root = Insert(tree.Root, value)
+}
+
+func Delete(root *RBNode, value int) *RBNode {
+	grandpa_ptr, father_ptr, me_ptr := (**RBNode)(nil), (**RBNode)(nil), &root
+	for *me_ptr != nil && (*me_ptr).Value != value {
+		if (*me_ptr).Full() && (*me_ptr).Left.Red() && (*me_ptr).Right.Red() {
+			FlipColor(*me_ptr)
+		}
+		if grandpa_ptr != nil && father_ptr != nil && (*father_ptr).Red() && (*me_ptr).Red() {
+			father, me := Reorient(*grandpa_ptr, *father_ptr, *me_ptr)
+			*grandpa_ptr = father
+			father_ptr = grandpa_ptr
+			if father.Left == me {
+				me_ptr = &father.Left
+			} else {
+				me_ptr = &father.Right
+			}
+		}
+		grandpa_ptr = father_ptr
+		father_ptr = me_ptr
+		if value < (*me_ptr).Value {
+			me_ptr = &(*me_ptr).Left
+		} else {
+			me_ptr = &(*me_ptr).Right
+		}
+	}
+	if *me_ptr != nil {
+		if (*me_ptr).Left == nil && (*me_ptr).Right == nil {
+			*me_ptr = nil
+		} else if (*me_ptr).Left == nil {
+			*me_ptr = (*me_ptr).Right
+			(*me_ptr).Color = Black
+		} else if (*me_ptr).Right == nil {
+			*me_ptr = (*me_ptr).Left
+			(*me_ptr).Color = Black
+		} else {
+			// find the min of right subtree
+			min, _ := Kth((*me_ptr).Right, 1) // guaranteed to be not nil
+			(*me_ptr).Value = min
+			(*me_ptr).Right = Delete((*me_ptr).Right, min)
+		}
+	}
+	return root
+}
+
+func (tree *RBTree) Delete(value int) {
+	tree.Root = Delete(tree.Root, value)
+}
+
+func (thisTree *RBTree) Size() uint32 {
 	if thisTree.Root == nil {
 		return 0
 	}
 	return thisTree.Root.Size
 }
 
-func (thisTree *AVL) Height() int32 {
-	if thisTree.Root == nil {
-		return -1
-	}
-	return thisTree.Root.Height
-}
-
-func (thisTree *AVL) Kth(k uint32) (int, error) {
+func (thisTree *RBTree) Kth(k uint32) (int, error) {
 	return Kth(thisTree.Root, k)
 }
 
-func (thisTree *AVL) Empty() bool {
+func (thisTree *RBTree) Empty() bool {
 	return thisTree.Root == nil
 }
 
-func (thisTree *AVL) Clear() {
+func (thisTree *RBTree) Clear() {
 	thisTree.Root = nil
 }
 
-func Rank(root *AVLNode, value int) uint32 {
+func Rank(root *RBNode, value int) uint32 {
 	rank := uint32(0)
 	for root != nil {
 		if root.Value < value {
@@ -224,54 +248,54 @@ func Rank(root *AVLNode, value int) uint32 {
 	return rank + 1
 }
 
-func (thisTree *AVL) Rank(value int) uint32 {
+func (thisTree *RBTree) Rank(value int) uint32 {
 	return Rank(thisTree.Root, value)
 }
 
-func Prev(root *AVLNode, value int) *AVLNode {
-	var result *AVLNode = nil
+func Prev(root *RBNode, value int) *RBNode {
+	var prev *RBNode = nil
 	for root != nil {
 		if root.Value < value {
-			result = root
+			prev = root
 			root = root.Right
 		} else {
 			root = root.Left
 		}
 	}
-	return result
+	return prev
 }
 
-func (thisTree *AVL) Prev(value int) (int, error) {
+func (thisTree *RBTree) Prev(value int) (int, error) {
 	prev := Prev(thisTree.Root, value)
 	if prev == nil {
-		return int(rune(0)), errors.New("no previous value")
+		return int(rune(0)), errors.New("No previous value")
 	}
 	return prev.Value, nil
 }
 
-func Next(root *AVLNode, value int) *AVLNode {
-	var result *AVLNode = nil
+func Next(root *RBNode, value int) *RBNode {
+	var next *RBNode = nil
 	for root != nil {
 		if root.Value > value {
-			result = root
+			next = root
 			root = root.Left
 		} else {
 			root = root.Right
 		}
 	}
-	return result
+	return next
 }
 
-func (thisTree *AVL) Next(value int) (int, error) {
+func (thisTree *RBTree) Next(value int) (int, error) {
 	next := Next(thisTree.Root, value)
 	if next == nil {
-		return int(rune(0)), errors.New("no next value")
+		return int(rune(0)), errors.New("No next value")
 	}
 	return next.Value, nil
 }
 
 func Read(istream *bufio.Reader) (int, error) {
-	res, sign := 0, 1
+	res, sign := int(0), 1
 	readed := false
 	c, err := istream.ReadByte()
 	for ; err == nil && (c < '0' || c > '9'); c, err = istream.ReadByte() {
@@ -289,51 +313,28 @@ func Read(istream *bufio.Reader) (int, error) {
 	return res * int(sign), err
 }
 
+func ReadWithPanic(gin *bufio.Reader) int {
+	value, err := Read(gin)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
 func main() {
-	ans, last := 0, 0
 	tree := New()
 	gin := bufio.NewReader(os.Stdin)
-	n, err := Read(gin)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	m, err := Read(gin)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	n := ReadWithPanic(gin)
 	for i := 0; i < n; i++ {
-		x, err := Read(gin)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		tree.Insert(x)
-	}
-	for i := 0; i < m; i++ {
-		opt, err := Read(gin)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		value, err := Read(gin)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		value ^= last
+		opt := ReadWithPanic(gin)
+		value := ReadWithPanic(gin)
 		switch opt {
 		case 1:
 			tree.Insert(value)
 		case 2:
 			tree.Delete(value)
 		case 3:
-			{
-				rank := tree.Rank(value)
-				ans ^= int(rank)
-				last = int(rank)
-			}
+			fmt.Println(tree.Rank(value))
 		case 4:
 			{
 				kth, err := tree.Kth(uint32(value))
@@ -341,30 +342,26 @@ func main() {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				ans ^= kth
-				last = kth
+				fmt.Println(kth)
 			}
 		case 5:
 			{
-				prev, err := tree.Prev(value)
+				kth, err := tree.Prev(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				ans ^= prev
-				last = prev
+				fmt.Println(kth)
 			}
 		case 6:
 			{
-				next, err := tree.Next(value)
+				kth, err := tree.Next(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				ans ^= next
-				last = next
+				fmt.Println(kth)
 			}
 		}
 	}
-	fmt.Println(ans)
 }
