@@ -15,12 +15,12 @@ const (
 )
 
 type RBNode struct {
-	Value int
-	Left  *RBNode
-	Right *RBNode
-	Color RBColor
-	Size  uint32 // Size of subtree, unnecessary if you don'int need kth element
-	// Father *RBNode // Not necessary, but easier to implement
+	Value  int
+	Left   *RBNode
+	Right  *RBNode
+	Color  RBColor
+	Size   uint32  // Size of subtree, unnecessary if you don'int need kth element
+	Father *RBNode // Not necessary, but easier to implement
 }
 
 func NewNode(value int) *RBNode {
@@ -31,9 +31,11 @@ func (thisNode *RBNode) Update() {
 	thisNode.Size = 1
 	if thisNode.Left != nil {
 		thisNode.Size += thisNode.Left.Size
+		thisNode.Left.Father = thisNode
 	}
 	if thisNode.Right != nil {
 		thisNode.Size += thisNode.Right.Size
+		thisNode.Right.Father = thisNode
 	}
 }
 
@@ -47,6 +49,10 @@ func (thisNode *RBNode) Black() bool {
 
 func (thisNode *RBNode) Full() bool {
 	return thisNode.Left != nil && thisNode.Right != nil
+}
+
+func (thisNode *RBNode) Leaf() bool {
+	return thisNode.Left == nil && thisNode.Right == nil
 }
 
 type RBTree struct {
@@ -126,6 +132,7 @@ func FlipColor(root *RBNode) {
 func Insert(root *RBNode, value int) *RBNode {
 	var header *RBNode = NewNode(int(rune(0)))
 	header.Right = root
+	header.Update()
 
 	var elizabeth, charles *RBNode
 	var william *RBNode = header
@@ -138,6 +145,7 @@ func Insert(root *RBNode, value int) *RBNode {
 		if william != nil && charles != nil && louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 				if elizabeth.Left == louis {
 					if value < louis.Value {
 						louis, william, charles = william, louis, elizabeth
@@ -149,6 +157,7 @@ func Insert(root *RBNode, value int) *RBNode {
 				}
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 				if elizabeth.Right == louis {
 					if value < louis.Value {
 						louis, william, charles = charles, louis, elizabeth
@@ -176,28 +185,41 @@ func Insert(root *RBNode, value int) *RBNode {
 	louis = NewNode(value)
 	if value < william.Value {
 		william.Left = louis
+		william.Update()
 		// Rotation cannot happen on level 2, so not need to check elizabeth.
 		if louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 			}
 		}
 	} else {
 		william.Right = louis
+		william.Update()
 		// Rotation cannot happen on level 2, so not need to check elizabeth.
 		if louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 			}
 		}
 	}
+
+	for louis != nil {
+		louis.Update()
+		louis = louis.Father
+	}
+
 	if header.Right.Red() {
 		header.Right.Color = Black
 	}
+	header.Right.Father = nil
 	return header.Right
 }
 
@@ -205,82 +227,136 @@ func (tree *RBTree) Insert(value int) {
 	tree.Root = Insert(tree.Root, value)
 }
 
+func Sibling(william, louis *RBNode) *RBNode {
+	if william.Left == louis {
+		return william.Right
+	}
+	return william.Left
+}
+
+// https://zhuanlan.zhihu.com/p/345560149
 func Delete(root *RBNode, value int) *RBNode {
 	var header *RBNode = NewNode(int(rune(0)))
 	header.Right = root
+	header.Update()
 
-	var elizabeth, charles *RBNode
+	var charles *RBNode
 	var william *RBNode = header
 	var louis *RBNode = root
 	// See Queen Elizabeth II's family tree for reference.
-	for louis != nil && value != louis.Value {
-		if louis.Full() && louis.Left.Red() && louis.Right.Red() {
-			FlipColor(louis)
-		} // Rotation cannot happen on level 2, so not need to check elizabeth.
-		if william != nil && charles != nil && louis.Red() && william.Red() {
-			if elizabeth.Left == charles {
-				elizabeth.Left = Reorient(charles, william, louis)
-				if elizabeth.Left == louis {
-					if value < louis.Value {
-						louis, william, charles = william, louis, elizabeth
+	for louis != nil {
+		if charles != nil {
+			// Case 4-2: Into the next level part.
+			if william.Black() {
+				if louis.Black() { // Case 5: Fix for Case 4-2-2: Louis is black.
+					charllote := Sibling(william, louis)
+					// Guaranteed to exist because case 5 is the result of Case 4
+					charllote.Color = Black
+					william.Color = Red
+					if charles.Left == william {
+						if charllote == william.Left {
+							charles.Left = RightRotate(william)
+							charles.Update()
+						} else {
+							charles.Left = LeftRotate(william)
+							charles.Update()
+						}
 					} else {
-						louis, william, charles = charles, louis, elizabeth
+						if charllote == william.Left {
+							charles.Right = RightRotate(william)
+							charles.Update()
+						} else {
+							charles.Right = LeftRotate(william)
+							charles.Update()
+						}
 					}
-				} else {
-					charles = elizabeth
+					louis, william = william, charllote
 				}
+				// Case 4-2-1: Louis is red, do nothing and go to the next level.
 			} else {
-				elizabeth.Right = Reorient(charles, william, louis)
-				if elizabeth.Right == louis {
-					if value < louis.Value {
-						louis, william, charles = charles, louis, elizabeth
-					} else {
-						louis, william, charles = william, louis, elizabeth
+				if louis.Black() {
+					if !((louis.Left != nil && louis.Left.Red()) || (louis.Right != nil && louis.Right.Red())) {
+						// Not Case 4: One of the children of Louis is red.
+						charllote := Sibling(william, louis) // William is Red now, so Charllote must exist and be black.
+						// Case 2: Charllote's left child is red.
+						if charllote.Left != nil && charllote.Left.Red() {
+							louis.Color = Red
+							if charles.Left == william {
+								charles.Left = Reorient(william, charllote, charllote.Left)
+								charles.Update()
+								FlipColor(charles.Left)
+							} else {
+								charles.Right = Reorient(william, charllote, charllote.Left)
+								charles.Update()
+								FlipColor(charles.Right)
+							}
+						} else if charllote.Right != nil && charllote.Right.Red() {
+							// Case 3: Charllote's right child is red.
+							louis.Color = Red
+							if charles.Left == william {
+								charles.Left = Reorient(william, charllote, charllote.Right)
+								charles.Update()
+								FlipColor(charles.Left)
+							} else {
+								charles.Right = Reorient(william, charllote, charllote.Right)
+								charles.Update()
+								FlipColor(charles.Right)
+							}
+						} else { // Case 1: Charllote's children are black.
+							FlipColor(william)
+						}
 					}
-				} else {
-					charles = elizabeth
+					// Case 4-1: Do nothing and go to the next level.
 				}
+				// Already red, do nothing and go to the next level.
 			}
+		} else { // Louis is the root.
+			louis.Color = Red
 		}
-		elizabeth, charles, william = charles, william, louis
+
+		if value == louis.Value {
+			break
+		}
+
+		charles, william = william, louis
 		if value < louis.Value {
 			louis = louis.Left
 		} else {
 			louis = louis.Right
 		}
 	}
-	if louis == nil {
-		return header.Right
-	} else {
-		if louis.Full() {
-			min, _ := Kth(louis.Right, 1) // guaranteed to exist
-			louis.Value = min
-			louis.Right = Delete(louis.Right, min)
-		} else if louis.Left == nil {
-			if louis.Right == nil {
-				if william.Left == louis {
-					william.Left = nil
-				} else {
-					william.Right = nil
-				}
-			} else {
-				if william.Left == louis {
-					william.Left = louis.Right
-				} else {
-					william.Right = louis.Right
-				}
-			}
-		} else {
+	if louis != nil {
+		if louis.Leaf() {
 			if william.Left == louis {
-				william.Left = louis.Left
+				william.Left = nil
 			} else {
-				william.Right = louis.Left
+				william.Right = nil
 			}
+		} else if louis.Left != nil && louis.Right == nil {
+			leftMax, _ := Kth(louis.Left, louis.Left.Size)
+			louis.Value = leftMax
+			louis.Left = Delete(louis.Left, leftMax)
+			louis.Update()
+		} else {
+			rightMin, _ := Kth(louis.Right, 1)
+			louis.Value = rightMin
+			louis.Right = Delete(louis.Right, rightMin)
+			louis.Update()
 		}
 	}
+
+	for louis != nil {
+		louis.Update()
+		louis = louis.Father
+	}
+
+	if header.Right != nil {
+		header.Right.Color = Black
+		header.Right.Father = nil
+	}
+
 	return header.Right
 }
-
 func (tree *RBTree) Delete(value int) {
 	tree.Root = Delete(tree.Root, value)
 }

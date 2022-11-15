@@ -85,6 +85,7 @@ func FlipColor[T ordered.Ordered](root *node.RBNode[T]) {
 func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 	var header *node.RBNode[T] = node.New(T(rune(0)))
 	header.Right = root
+	header.Update()
 
 	var elizabeth, charles *node.RBNode[T]
 	var william *node.RBNode[T] = header
@@ -97,6 +98,7 @@ func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 		if william != nil && charles != nil && louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 				if elizabeth.Left == louis {
 					if value < louis.Value {
 						louis, william, charles = william, louis, elizabeth
@@ -108,6 +110,7 @@ func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 				}
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 				if elizabeth.Right == louis {
 					if value < louis.Value {
 						louis, william, charles = charles, louis, elizabeth
@@ -135,28 +138,41 @@ func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 	louis = node.New(value)
 	if value < william.Value {
 		william.Left = louis
+		william.Update()
 		// Rotation cannot happen on level 2, so not need to check elizabeth.
 		if louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 			}
 		}
 	} else {
 		william.Right = louis
+		william.Update()
 		// Rotation cannot happen on level 2, so not need to check elizabeth.
 		if louis.Red() && william.Red() {
 			if elizabeth.Left == charles {
 				elizabeth.Left = Reorient(charles, william, louis)
+				elizabeth.Update()
 			} else {
 				elizabeth.Right = Reorient(charles, william, louis)
+				elizabeth.Update()
 			}
 		}
 	}
+
+	for louis != nil {
+		louis.Update()
+		louis = louis.Father
+	}
+
 	if header.Right.Red() {
 		header.Right.Color = node.Black
 	}
+	header.Right.Father = nil
 	return header.Right
 }
 
@@ -164,85 +180,144 @@ func (tree *RBTree[T]) Insert(value T) {
 	tree.Root = Insert(tree.Root, value)
 }
 
+func Sibling[T ordered.Ordered](william, louis *node.RBNode[T]) *node.RBNode[T] {
+	if william.Left == louis {
+		return william.Right
+	}
+	return william.Left
+}
+
+func WeakBlack[T ordered.Ordered](root *node.RBNode[T]) bool {
+	return root == nil || root.Black()
+}
+
+func StrongRed[T ordered.Ordered](root *node.RBNode[T]) bool {
+	return root != nil && root.Red()
+}
+
 func Delete[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 	var header *node.RBNode[T] = node.New(T(rune(0)))
 	header.Right = root
+	header.Update()
 
-	var elizabeth, charles *node.RBNode[T]
+	var charles *node.RBNode[T]
 	var william *node.RBNode[T] = header
 	var louis *node.RBNode[T] = root
 	// See Queen Elizabeth II's family tree for reference.
-	for louis != nil && value != louis.Value {
-		if louis.Full() && louis.Left.Red() && louis.Right.Red() {
-			FlipColor(louis)
-		} // Rotation cannot happen on level 2, so not need to check elizabeth.
-		if william != nil && charles != nil && louis.Red() && william.Red() {
-			if elizabeth.Left == charles {
-				elizabeth.Left = Reorient(charles, william, louis)
-				if elizabeth.Left == louis {
-					if value < louis.Value {
-						louis, william, charles = william, louis, elizabeth
-					} else {
-						louis, william, charles = charles, louis, elizabeth
-					}
-				} else {
-					charles = elizabeth
+
+	isCase2B := false
+
+	for louis != nil && louis.Value != value {
+		if !isCase2B {
+			if charles == nil { // Step 1, Louis is the root.
+				if WeakBlack(louis.Left) && WeakBlack(louis.Right) {
+					// Case 1-A, Louis is the root and has two black children.
+					louis.Color = node.Red
+				} else { // Case 1-B, Louis is the root and has one red child.
+					isCase2B = true
 				}
-			} else {
-				elizabeth.Right = Reorient(charles, william, louis)
-				if elizabeth.Right == louis {
-					if value < louis.Value {
-						louis, william, charles = charles, louis, elizabeth
-					} else {
-						louis, william, charles = william, louis, elizabeth
+			} else { // Step 2, the main case.
+				if WeakBlack(louis.Left) && WeakBlack(louis.Right) {
+					// Case 2-A, Louis has two black children.
+					charlotte := Sibling(charles, william)
+					if WeakBlack(charlotte.Left) && WeakBlack(charlotte.Right) {
+						// Case 2-A1, Charlotte has two black children.
+						FlipColor(william)
+					} else if StrongRed(charlotte.Left) {
+						// Case 2-A2, Charlotte has one red child.
+						louis.Color = node.Red
+						if charles.Left == william {
+							charles.Left = Reorient(william, charlotte, charlotte.Left)
+							charles.Update()
+							FlipColor(charles.Left)
+						} else {
+							charles.Right = Reorient(william, charlotte, charlotte.Left)
+							charles.Update()
+							FlipColor(charles.Right)
+						}
+					} else if StrongRed(charlotte.Right) {
+						// Case 2-A3, Charlotte has one red child.
+						louis.Color = node.Red
+						if charles.Left == william {
+							charles.Left = Reorient(william, charlotte, charlotte.Right)
+							charles.Update()
+							FlipColor(charles.Left)
+						} else {
+							charles.Right = Reorient(william, charlotte, charlotte.Right)
+							charles.Update()
+							FlipColor(charles.Right)
+						}
 					}
-				} else {
-					charles = elizabeth
+				} else { // Case 2-B, Louis has one red child.
+					isCase2B = true
 				}
 			}
+		} else { // Case 2B: Louis has at least one red child.
+			if louis.Black() { // If louis is black, then perform a rotation.
+				charlette := Sibling(charles, william)
+				if charles.Left == william {
+					if charlette == william.Left {
+						charles.Left = RightRotate(william)
+						charles.Update()
+					} else {
+						charles.Left = LeftRotate(william)
+						charles.Update()
+					}
+				} else {
+					if charlette == william.Left {
+						charles.Right = RightRotate(william)
+						charles.Update()
+					} else {
+						charles.Right = LeftRotate(william)
+						charles.Update()
+					}
+				}
+				charlette.Color = node.Black
+				william.Color = node.Red
+				louis, william = william, charlette
+				isCase2B = false
+			}
 		}
-		elizabeth, charles, william = charles, william, louis
+
+		charles, william = william, louis
 		if value < louis.Value {
 			louis = louis.Left
 		} else {
 			louis = louis.Right
 		}
 	}
-	if louis == nil {
+	if louis != nil {
+		if louis.Leaf() {
+			if william.Left == louis {
+				william.Left = nil
+			} else {
+				william.Right = nil
+			}
+		} else if louis.Left != nil && louis.Right == nil {
+			leftMax, _ := Kth(louis.Left, louis.Left.Size)
+			louis.Value = leftMax
+			louis.Left = Delete(louis.Left, leftMax)
+			louis.Update()
+		} else {
+			rightMin, _ := Kth(louis.Right, 1)
+			louis.Value = rightMin
+			louis.Right = Delete(louis.Right, rightMin)
+			louis.Update()
+		}
+	}
+
+	for louis != nil {
+		louis.Update()
+		louis = louis.Father
+	}
+
+	if header.Right != nil {
 		if header.Right.Red() {
 			header.Right.Color = node.Black
 		}
-		return header.Right
-	} else {
-		if louis.Full() {
-			min, _ := Kth(louis.Right, 1) // guaranteed to exist
-			louis.Value = min
-			louis.Right = Delete(louis.Right, min)
-		} else if louis.Left == nil {
-			if louis.Right == nil {
-				if william.Left == louis {
-					william.Left = nil
-				} else {
-					william.Right = nil
-				}
-			} else {
-				if william.Left == louis {
-					william.Left = louis.Right
-				} else {
-					william.Right = louis.Right
-				}
-			}
-		} else {
-			if william.Left == louis {
-				william.Left = louis.Left
-			} else {
-				william.Right = louis.Left
-			}
-		}
+		header.Right.Father = nil
 	}
-	if header.Right.Red() {
-		header.Right.Color = node.Black
-	}
+
 	return header.Right
 }
 
@@ -342,6 +417,7 @@ func Print[T ordered.Ordered](root *node.RBNode[T]) string {
 	} else {
 		buffer.WriteString("0, ")
 	}
+	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size))
 	buffer.WriteString(fmt.Sprintf("%v, ", Print(root.Left)))
 	buffer.WriteString(fmt.Sprintf("%v]", Print(root.Right)))
 	return buffer.String()
