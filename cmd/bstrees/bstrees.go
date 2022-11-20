@@ -61,6 +61,9 @@ func main() {
 		}
 		if opt == 1 || opt == 2 {
 			tree.Print()
+			if err := tree.PropertyCheck(); err != nil {
+				panic(err)
+			}
 		}
 	}
 }

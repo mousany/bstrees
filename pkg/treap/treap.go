@@ -104,6 +104,19 @@ func (thisTree *Treap[T]) Delete(value T) {
 	thisTree.Root = Delete(thisTree.Root, value)
 }
 
+func (thisTree *Treap[T]) Contains(value T) bool {
+	for root := thisTree.Root; root != nil; {
+		if root.Value == value {
+			return true
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			root = root.Left
+		}
+	}
+	return false
+}
+
 func (thisTree *Treap[T]) Kth(k uint32) (T, error) {
 	result := Kth(thisTree.Root, k)
 	if result == nil {

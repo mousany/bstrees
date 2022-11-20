@@ -16,24 +16,6 @@ func New[T ordered.Ordered]() *RBTree[T] {
 	return &RBTree[T]{Root: nil}
 }
 
-func LeftRotate[T ordered.Ordered](root *node.RBNode[T]) *node.RBNode[T] {
-	right := root.Right
-	root.Right = right.Left
-	right.Left = root
-	root.Update()
-	right.Update()
-	return right
-}
-
-func RightRotate[T ordered.Ordered](root *node.RBNode[T]) *node.RBNode[T] {
-	left := root.Left
-	root.Left = left.Right
-	left.Right = root
-	root.Update()
-	left.Update()
-	return left
-}
-
 func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) (T, error) {
 	for root != nil {
 		leftSize := uint32(0)
@@ -52,277 +34,176 @@ func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) (T, error) {
 	return T(rune(0)), errors.ErrOutOfRange
 }
 
-func Reorient[T ordered.Ordered](charles, william, louis *node.RBNode[T]) *node.RBNode[T] {
-	if william == charles.Left {
-		charles.Color = node.Red
-		if william.Right == louis {
-			charles.Left = LeftRotate(william)
-		}
-		charles.Left.Color = node.Black
-		return RightRotate(charles)
+func SingleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node.RBNode[T] {
+	save := root.Child(!direction)
+	root.SetChild(!direction, save.Child(direction))
+	save.SetChild(direction, root)
+	root.Update()
+	save.Update()
+	root.Color = node.Red
+	save.Color = node.Black
+	return save
+}
+
+func DoubleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node.RBNode[T] {
+	root.SetChild(!direction, SingleRotate(root.Child(!direction), !direction))
+	return SingleRotate(root, direction)
+}
+
+// https://archive.ph/EJTsz, Eternally Confuzzled's Blog
+func (thisTree *RBTree[T]) Insert(value T) {
+	if thisTree.Root == nil {
+		thisTree.Root = node.New(value)
 	} else {
-		charles.Color = node.Red
-		if william.Left == louis {
-			charles.Right = RightRotate(william)
-		}
-		charles.Right.Color = node.Black
-		return LeftRotate(charles)
-	}
-}
+		superRoot := node.New(T(rune(0))) // Head in Eternally Confuzzled's paper
+		superRoot.Right = thisTree.Root
 
-func FlipColor[T ordered.Ordered](root *node.RBNode[T]) {
-	if root != nil {
-		root.Color = node.RBColor(!root.Color)
-		if root.Left != nil {
-			root.Left.Color = node.RBColor(!root.Left.Color)
-		}
-		if root.Right != nil {
-			root.Right.Color = node.RBColor(!root.Right.Color)
-		}
-	}
-}
+		var child *node.RBNode[T] = thisTree.Root        // Q in Eternally Confuzzled's paper
+		var parent *node.RBNode[T] = nil                 // P in Eternally Confuzzled's paper
+		var grandParent *node.RBNode[T] = nil            // G in Eternally Confuzzled's paper
+		var greatGrandParent *node.RBNode[T] = superRoot // T in Eternally Confuzzled's paper
 
-func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
-	var header *node.RBNode[T] = node.New(T(rune(0)))
-	header.Right = root
-	header.Update()
+		var direction bool = false
+		var lastDirection bool = false
 
-	var elizabeth, charles *node.RBNode[T]
-	var william *node.RBNode[T] = header
-	var louis *node.RBNode[T] = root
-	// See Queen Elizabeth II's family tree for reference.
-	for louis != nil {
-		if louis.Full() && louis.Left.Red() && louis.Right.Red() {
-			FlipColor(louis)
-		} // Rotation cannot happen on level 2, so not need to check elizabeth.
-		if william != nil && charles != nil && louis.Red() && william.Red() {
-			if elizabeth.Left == charles {
-				elizabeth.Left = Reorient(charles, william, louis)
-				elizabeth.Update()
-				if elizabeth.Left == louis {
-					if value < louis.Value {
-						louis, william, charles = william, louis, elizabeth
-					} else {
-						louis, william, charles = charles, louis, elizabeth
-					}
-				} else {
-					charles = elizabeth
-				}
+		// Search down
+		for ok := false; !ok; {
+			if child == nil {
+				// Insert new node at the bottom
+				child = node.New(value)
+				parent.SetChild(direction, child)
+				ok = true
 			} else {
-				elizabeth.Right = Reorient(charles, william, louis)
-				elizabeth.Update()
-				if elizabeth.Right == louis {
-					if value < louis.Value {
-						louis, william, charles = charles, louis, elizabeth
-					} else {
-						louis, william, charles = william, louis, elizabeth
-					}
-				} else {
-					charles = elizabeth
+				// Update size
+				child.Size += 1
+				if node.IsRed(child.Left) && node.IsRed(child.Right) {
+					// Color flip
+					child.Color = node.Red
+					child.Left.Color = node.Black
+					child.Right.Color = node.Black
 				}
 			}
+
+			if node.IsRed(child) && node.IsRed(parent) {
+				// Fix red violation
+				direction2 := greatGrandParent.Right == grandParent
+				if child == parent.Child(lastDirection) {
+					greatGrandParent.SetChild(direction2, SingleRotate(grandParent, !lastDirection))
+				} else {
+					greatGrandParent.SetChild(direction2, DoubleRotate(grandParent, !lastDirection))
+					parent.Size += 1
+				}
+				grandParent.Size += 1
+				greatGrandParent.Child(direction2).Update()
+			}
+
+			lastDirection = direction
+			direction = child.Value < value
+			if grandParent != nil {
+				greatGrandParent = grandParent
+			}
+
+			grandParent = parent
+			parent = child
+			child = child.Child(direction)
 		}
-		elizabeth, charles, william = charles, william, louis
-		if value < louis.Value {
-			louis = louis.Left
+
+		// Update root
+		thisTree.Root = superRoot.Right
+	}
+
+	thisTree.Root.Color = node.Black
+}
+
+func (thisTree *RBTree[T]) Contains(value T) bool {
+	for root := thisTree.Root; root != nil; {
+		if root.Value == value {
+			return true
+		} else if root.Value < value {
+			root = root.Right
 		} else {
-			louis = louis.Right
+			root = root.Left
 		}
 	}
-	if charles == nil { // The tree is empty.
-		header.Right = node.New(value)
-		header.Right.Color = node.Black
-		return header.Right
-	}
-	// fmt.Println(william, charles, elizabeth)
-	louis = node.New(value)
-	if value < william.Value {
-		william.Left = louis
-		william.Update()
-		// Rotation cannot happen on level 2, so not need to check elizabeth.
-		if louis.Red() && william.Red() {
-			if elizabeth.Left == charles {
-				elizabeth.Left = Reorient(charles, william, louis)
-				elizabeth.Update()
-			} else {
-				elizabeth.Right = Reorient(charles, william, louis)
-				elizabeth.Update()
+	return false
+}
+
+func (thisTree *RBTree[T]) Delete(value T) {
+	if thisTree.Root != nil && thisTree.Contains(value) {
+		superRoot := node.New(T(rune(0))) // Head in Eternally Confuzzled's paper
+		superRoot.Right = thisTree.Root
+
+		var child *node.RBNode[T] = superRoot // Q in Eternally Confuzzled's paper
+		var parent *node.RBNode[T] = nil      // P in Eternally Confuzzled's paper
+		var grandParent *node.RBNode[T] = nil // G in Eternally Confuzzled's paper
+		var target *node.RBNode[T] = nil      // F in Eternally Confuzzled's paper
+		direction := true
+
+		// Search and push a red down
+		for child.Child(direction) != nil {
+			lastDirection := direction
+
+			grandParent = parent
+			parent = child
+			child = child.Child(direction)
+			direction = child.Value < value
+
+			// Update size
+			child.Size -= 1
+
+			// Save the target node
+			if child.Value == value {
+				target = child
 			}
-		}
-	} else {
-		william.Right = louis
-		william.Update()
-		// Rotation cannot happen on level 2, so not need to check elizabeth.
-		if louis.Red() && william.Red() {
-			if elizabeth.Left == charles {
-				elizabeth.Left = Reorient(charles, william, louis)
-				elizabeth.Update()
-			} else {
-				elizabeth.Right = Reorient(charles, william, louis)
-				elizabeth.Update()
-			}
-		}
-	}
 
-	for louis != nil {
-		louis.Update()
-		louis = louis.Father
-	}
-
-	if header.Right.Red() {
-		header.Right.Color = node.Black
-	}
-	header.Right.Father = nil
-	return header.Right
-}
-
-func (tree *RBTree[T]) Insert(value T) {
-	tree.Root = Insert(tree.Root, value)
-}
-
-func Sibling[T ordered.Ordered](william, louis *node.RBNode[T]) *node.RBNode[T] {
-	if william.Left == louis {
-		return william.Right
-	}
-	return william.Left
-}
-
-func WeakBlack[T ordered.Ordered](root *node.RBNode[T]) bool {
-	return root == nil || root.Black()
-}
-
-func StrongRed[T ordered.Ordered](root *node.RBNode[T]) bool {
-	return root != nil && root.Red()
-}
-
-func Delete[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
-	var header *node.RBNode[T] = node.New(T(rune(0)))
-	header.Right = root
-	header.Update()
-
-	var charles *node.RBNode[T]
-	var william *node.RBNode[T] = header
-	var louis *node.RBNode[T] = root
-	// See Queen Elizabeth II's family tree for reference.
-
-	isCase2B := false
-
-	for louis != nil && louis.Value != value {
-		if !isCase2B {
-			if charles == nil { // Step 1, Louis is the root.
-				if WeakBlack(louis.Left) && WeakBlack(louis.Right) {
-					// Case 1-A, Louis is the root and has two black children.
-					louis.Color = node.Red
-				} else { // Case 1-B, Louis is the root and has one red child.
-					isCase2B = true
-				}
-			} else { // Step 2, the main case.
-				if WeakBlack(louis.Left) && WeakBlack(louis.Right) {
-					// Case 2-A, Louis has two black children.
-					charlotte := Sibling(charles, william)
-					if WeakBlack(charlotte.Left) && WeakBlack(charlotte.Right) {
-						// Case 2-A1, Charlotte has two black children.
-						FlipColor(william)
-					} else if StrongRed(charlotte.Left) {
-						// Case 2-A2, Charlotte has one red child.
-						louis.Color = node.Red
-						if charles.Left == william {
-							charles.Left = Reorient(william, charlotte, charlotte.Left)
-							charles.Update()
-							FlipColor(charles.Left)
+			// Push the red node down
+			if !node.IsRed(child) && !node.IsRed(child.Child(direction)) {
+				if node.IsRed(child.Child(!direction)) {
+					parent.SetChild(lastDirection, SingleRotate(child, direction))
+					parent = parent.Child(lastDirection)
+				} else if !node.IsRed(child.Child(!direction)) {
+					sibling := parent.Child(!lastDirection)
+					if sibling != nil {
+						if !node.IsRed(sibling.Child(!lastDirection)) && !node.IsRed(sibling.Child(lastDirection)) {
+							// Color flip
+							parent.Color = node.Black
+							sibling.Color = node.Red
+							child.Color = node.Red
 						} else {
-							charles.Right = Reorient(william, charlotte, charlotte.Left)
-							charles.Update()
-							FlipColor(charles.Right)
-						}
-					} else if StrongRed(charlotte.Right) {
-						// Case 2-A3, Charlotte has one red child.
-						louis.Color = node.Red
-						if charles.Left == william {
-							charles.Left = Reorient(william, charlotte, charlotte.Right)
-							charles.Update()
-							FlipColor(charles.Left)
-						} else {
-							charles.Right = Reorient(william, charlotte, charlotte.Right)
-							charles.Update()
-							FlipColor(charles.Right)
+							direction2 := grandParent.Right == parent
+							if node.IsRed(sibling.Child(lastDirection)) {
+								grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
+							} else if node.IsRed(sibling.Child(!lastDirection)) {
+								grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
+							}
+
+							// // Update Size
+							// parent.Update()
+							// grandParent.Child(direction2).Update()
+
+							// Ensure correct coloring
+							child.Color = node.Red
+							grandParent.Child(direction2).Color = node.Red
+							grandParent.Child(direction2).Left.Color = node.Black
+							grandParent.Child(direction2).Right.Color = node.Black
 						}
 					}
-				} else { // Case 2-B, Louis has one red child.
-					isCase2B = true
 				}
 			}
-		} else { // Case 2B: Louis has at least one red child.
-			if louis.Black() { // If louis is black, then perform a rotation.
-				charlette := Sibling(charles, william)
-				if charles.Left == william {
-					if charlette == william.Left {
-						charles.Left = RightRotate(william)
-						charles.Update()
-					} else {
-						charles.Left = LeftRotate(william)
-						charles.Update()
-					}
-				} else {
-					if charlette == william.Left {
-						charles.Right = RightRotate(william)
-						charles.Update()
-					} else {
-						charles.Right = LeftRotate(william)
-						charles.Update()
-					}
-				}
-				charlette.Color = node.Black
-				william.Color = node.Red
-				louis, william = william, charlette
-				isCase2B = false
-			}
 		}
 
-		charles, william = william, louis
-		if value < louis.Value {
-			louis = louis.Left
-		} else {
-			louis = louis.Right
+		// Replace and remove the target node
+		if target != nil {
+			target.Value = child.Value
+			parent.SetChild(parent.Right == child, child.Child(child.Left == nil))
+		}
+
+		// Update root and make it black
+		thisTree.Root = superRoot.Right
+		if thisTree.Root != nil {
+			thisTree.Root.Color = node.Black
 		}
 	}
-	if louis != nil {
-		if louis.Leaf() {
-			if william.Left == louis {
-				william.Left = nil
-			} else {
-				william.Right = nil
-			}
-		} else if louis.Left != nil && louis.Right == nil {
-			leftMax, _ := Kth(louis.Left, louis.Left.Size)
-			louis.Value = leftMax
-			louis.Left = Delete(louis.Left, leftMax)
-			louis.Update()
-		} else {
-			rightMin, _ := Kth(louis.Right, 1)
-			louis.Value = rightMin
-			louis.Right = Delete(louis.Right, rightMin)
-			louis.Update()
-		}
-	}
-
-	for louis != nil {
-		louis.Update()
-		louis = louis.Father
-	}
-
-	if header.Right != nil {
-		if header.Right.Red() {
-			header.Right.Color = node.Black
-		}
-		header.Right.Father = nil
-	}
-
-	return header.Right
-}
-
-func (tree *RBTree[T]) Delete(value T) {
-	tree.Root = Delete(tree.Root, value)
 }
 
 func (thisTree *RBTree[T]) Size() uint32 {
@@ -412,11 +293,12 @@ func Print[T ordered.Ordered](root *node.RBNode[T]) string {
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("[%v", root.Value))
-	if root.Red() {
-		buffer.WriteString("1, ")
-	} else {
-		buffer.WriteString("0, ")
-	}
+	// if root.Red() {
+	// 	buffer.WriteString("1, ")
+	// } else {
+	// 	buffer.WriteString("0, ")
+	// }
+	buffer.WriteString(fmt.Sprintf(".%v, ", root.Size))
 	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size))
 	buffer.WriteString(fmt.Sprintf("%v, ", Print(root.Left)))
 	buffer.WriteString(fmt.Sprintf("%v]", Print(root.Right)))
@@ -425,4 +307,38 @@ func Print[T ordered.Ordered](root *node.RBNode[T]) string {
 
 func (thisTree *RBTree[T]) Print() {
 	fmt.Println(Print(thisTree.Root))
+}
+
+func PropertyCheck[T ordered.Ordered](root *node.RBNode[T]) (uint, error) {
+	if root == nil {
+		return uint(1), nil
+	}
+	left, right := root.Left, root.Right
+	if root.Red() {
+		if node.IsRed(left) || node.IsRed(right) {
+			return 0, errors.ErrViolatedRedBlackTree
+		}
+	}
+	leftHeight, leftOk := PropertyCheck(left)
+	rightHeight, rightOk := PropertyCheck(right)
+
+	if (left != nil && left.Value > root.Value) || (right != nil && right.Value < root.Value) {
+		return 0, errors.ErrViolatedRedBlackTree
+	}
+
+	if leftOk == nil && rightOk == nil {
+		if leftHeight != rightHeight {
+			return 0, errors.ErrViolatedRedBlackTree
+		}
+		if root.Red() {
+			return leftHeight, nil
+		}
+		return leftHeight + 1, nil
+	}
+	return 0, errors.ErrViolatedRedBlackTree
+}
+
+func (thisTree *RBTree[T]) PropertyCheck() error {
+	_, err := PropertyCheck(thisTree.Root)
+	return err
 }

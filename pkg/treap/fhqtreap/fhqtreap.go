@@ -81,6 +81,19 @@ func (thisTree *FHQTreap[T]) Delete(value T) {
 	thisTree.Root = Merge(Merge(left, mid), right)
 }
 
+func (thisTree *FHQTreap[T]) Contains(value T) bool {
+	for root := thisTree.Root; root != nil; {
+		if root.Value == value {
+			return true
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			root = root.Left
+		}
+	}
+	return false
+}
+
 func (thisTree *FHQTreap[T]) Rank(value T) uint32 {
 	left, right := Split(thisTree.Root, value-1)
 	defer func() {

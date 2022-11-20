@@ -10,12 +10,12 @@ const (
 )
 
 type RBNode[T ordered.Ordered] struct {
-	Value  T
-	Left   *RBNode[T]
-	Right  *RBNode[T]
-	Color  RBColor
-	Size   uint32     // Size of subtree, unnecessary if you don't need kth element
-	Father *RBNode[T] // Not necessary, but easier to implement
+	Value T
+	Left  *RBNode[T]
+	Right *RBNode[T]
+	Color RBColor
+	Size  uint32 // Size of subtree, unnecessary if you don't need kth element
+	// Father *RBNode[T] // Not necessary, but easier to implement
 }
 
 func New[T ordered.Ordered](value T) *RBNode[T] {
@@ -26,11 +26,9 @@ func (thisNode *RBNode[T]) Update() {
 	thisNode.Size = 1
 	if thisNode.Left != nil {
 		thisNode.Size += thisNode.Left.Size
-		thisNode.Left.Father = thisNode
 	}
 	if thisNode.Right != nil {
 		thisNode.Size += thisNode.Right.Size
-		thisNode.Right.Father = thisNode
 	}
 }
 
@@ -48,4 +46,29 @@ func (thisNode *RBNode[T]) Full() bool {
 
 func (thisNode *RBNode[T]) Leaf() bool {
 	return thisNode.Left == nil && thisNode.Right == nil
+}
+
+func (thisNode *RBNode[T]) Child(direction bool) *RBNode[T] {
+	if direction {
+		return thisNode.Right
+	} else {
+		return thisNode.Left
+	}
+}
+
+func (thisNode *RBNode[T]) SetChild(direction bool, child *RBNode[T]) {
+	if direction {
+		thisNode.Right = child
+	} else {
+		thisNode.Left = child
+	}
+	// thisNode.Update()
+}
+
+func IsRed[T ordered.Ordered](node *RBNode[T]) bool {
+	return node != nil && node.Red()
+}
+
+func IsBlack[T ordered.Ordered](node *RBNode[T]) bool {
+	return node == nil || node.Black()
 }

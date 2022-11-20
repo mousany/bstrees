@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	ErrOutOfRange  = defaultErrors.New("index out of range")
-	ErrNoPrevValue = defaultErrors.New("no previous value")
-	ErrNoNextValue = defaultErrors.New("no next value")
+	ErrOutOfRange           = defaultErrors.New("index out of range")
+	ErrNoPrevValue          = defaultErrors.New("no previous value")
+	ErrNoNextValue          = defaultErrors.New("no next value")
+	ErrViolatedRedBlackTree = defaultErrors.New("violated red-black tree")
 )

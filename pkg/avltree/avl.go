@@ -136,6 +136,19 @@ func (thisTree *AVLTree[T]) Delete(value T) {
 	thisTree.Root = Delete(thisTree.Root, value)
 }
 
+func (thisTree *AVLTree[T]) Contains(value T) bool {
+	for root := thisTree.Root; root != nil; {
+		if root.Value == value {
+			return true
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			root = root.Left
+		}
+	}
+	return false
+}
+
 func (thisTree *AVLTree[T]) Size() uint32 {
 	if thisTree.Root == nil {
 		return 0
