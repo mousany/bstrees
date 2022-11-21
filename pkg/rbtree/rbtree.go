@@ -4,8 +4,6 @@ import (
 	"bstrees/pkg/errors"
 	"bstrees/pkg/rbtree/node"
 	"bstrees/pkg/trait/ordered"
-	"bytes"
-	"fmt"
 )
 
 type RBTree[T ordered.Ordered] struct {
@@ -89,12 +87,16 @@ func (thisTree *RBTree[T]) Insert(value T) {
 				direction2 := greatGrandParent.Right == grandParent
 				if child == parent.Child(lastDirection) {
 					greatGrandParent.SetChild(direction2, SingleRotate(grandParent, !lastDirection))
+					// When performing a single rotation to grandparent, child is not affected.
+					// So when grandparent(old) and parent(old) is updated, there are all +1ed.
 				} else {
 					greatGrandParent.SetChild(direction2, DoubleRotate(grandParent, !lastDirection))
-					parent.Size += 1
+					if !ok {
+						// When performing a double rotation to grandparent, child is affected.
+						// So we need to update child(now grandParent)'s size. But there is no need we insert is done.
+						greatGrandParent.Child(direction2).Size += 1
+					}
 				}
-				grandParent.Size += 1
-				greatGrandParent.Child(direction2).Update()
 			}
 
 			lastDirection = direction
@@ -161,6 +163,11 @@ func (thisTree *RBTree[T]) Delete(value T) {
 				if node.IsRed(child.Child(!direction)) {
 					parent.SetChild(lastDirection, SingleRotate(child, direction))
 					parent = parent.Child(lastDirection)
+
+					// When performing a single rotation to child, child is affected.
+					// So we need to update child and sibling(now parent)'s size.
+					child.Size -= 1
+					parent.Update()
 				} else if !node.IsRed(child.Child(!direction)) {
 					sibling := parent.Child(!lastDirection)
 					if sibling != nil {
@@ -176,6 +183,9 @@ func (thisTree *RBTree[T]) Delete(value T) {
 							} else if node.IsRed(sibling.Child(!lastDirection)) {
 								grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
 							}
+
+							// When performing a rotation to parent, child is not affected.
+							// So all nodes on the path are -1ed.
 
 							// // Update Size
 							// parent.Update()
@@ -287,58 +297,58 @@ func (thisTree *RBTree[T]) Next(value T) (T, error) {
 	return next.Value, nil
 }
 
-func Print[T ordered.Ordered](root *node.RBNode[T]) string {
-	if root == nil {
-		return "null"
-	}
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("[%v", root.Value))
-	// if root.Red() {
-	// 	buffer.WriteString("1, ")
-	// } else {
-	// 	buffer.WriteString("0, ")
-	// }
-	buffer.WriteString(fmt.Sprintf(".%v, ", root.Size))
-	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size))
-	buffer.WriteString(fmt.Sprintf("%v, ", Print(root.Left)))
-	buffer.WriteString(fmt.Sprintf("%v]", Print(root.Right)))
-	return buffer.String()
-}
+// func Print[T ordered.Ordered](root *node.RBNode[T]) string {
+// 	if root == nil {
+// 		return "null"
+// 	}
+// 	var buffer bytes.Buffer
+// 	buffer.WriteString(fmt.Sprintf("[%v", root.Value))
+// 	// if root.Red() {
+// 	// 	buffer.WriteString("1, ")
+// 	// } else {
+// 	// 	buffer.WriteString("0, ")
+// 	// }
+// 	buffer.WriteString(fmt.Sprintf(".%v, ", root.Size))
+// 	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size))
+// 	buffer.WriteString(fmt.Sprintf("%v, ", Print(root.Left)))
+// 	buffer.WriteString(fmt.Sprintf("%v]", Print(root.Right)))
+// 	return buffer.String()
+// }
 
-func (thisTree *RBTree[T]) Print() {
-	fmt.Println(Print(thisTree.Root))
-}
+// func (thisTree *RBTree[T]) Print() {
+// 	fmt.Println(Print(thisTree.Root))
+// }
 
-func PropertyCheck[T ordered.Ordered](root *node.RBNode[T]) (uint, error) {
-	if root == nil {
-		return uint(1), nil
-	}
-	left, right := root.Left, root.Right
-	if root.Red() {
-		if node.IsRed(left) || node.IsRed(right) {
-			return 0, errors.ErrViolatedRedBlackTree
-		}
-	}
-	leftHeight, leftOk := PropertyCheck(left)
-	rightHeight, rightOk := PropertyCheck(right)
+// func PropertyCheck[T ordered.Ordered](root *node.RBNode[T]) (uint, error) {
+// 	if root == nil {
+// 		return uint(1), nil
+// 	}
+// 	left, right := root.Left, root.Right
+// 	if root.Red() {
+// 		if node.IsRed(left) || node.IsRed(right) {
+// 			return 0, errors.ErrViolatedRedBlackTree
+// 		}
+// 	}
+// 	leftHeight, leftOk := PropertyCheck(left)
+// 	rightHeight, rightOk := PropertyCheck(right)
 
-	if (left != nil && left.Value > root.Value) || (right != nil && right.Value < root.Value) {
-		return 0, errors.ErrViolatedRedBlackTree
-	}
+// 	if (left != nil && left.Value > root.Value) || (right != nil && right.Value < root.Value) {
+// 		return 0, errors.ErrViolatedRedBlackTree
+// 	}
 
-	if leftOk == nil && rightOk == nil {
-		if leftHeight != rightHeight {
-			return 0, errors.ErrViolatedRedBlackTree
-		}
-		if root.Red() {
-			return leftHeight, nil
-		}
-		return leftHeight + 1, nil
-	}
-	return 0, errors.ErrViolatedRedBlackTree
-}
+// 	if leftOk == nil && rightOk == nil {
+// 		if leftHeight != rightHeight {
+// 			return 0, errors.ErrViolatedRedBlackTree
+// 		}
+// 		if root.Red() {
+// 			return leftHeight, nil
+// 		}
+// 		return leftHeight + 1, nil
+// 	}
+// 	return 0, errors.ErrViolatedRedBlackTree
+// }
 
-func (thisTree *RBTree[T]) PropertyCheck() error {
-	_, err := PropertyCheck(thisTree.Root)
-	return err
-}
+// func (thisTree *RBTree[T]) PropertyCheck() error {
+// 	_, err := PropertyCheck(thisTree.Root)
+// 	return err
+// }

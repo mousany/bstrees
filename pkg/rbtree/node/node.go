@@ -65,10 +65,10 @@ func (thisNode *RBNode[T]) SetChild(direction bool, child *RBNode[T]) {
 	// thisNode.Update()
 }
 
-func IsRed[T ordered.Ordered](node *RBNode[T]) bool {
-	return node != nil && node.Red()
+func IsRed[T ordered.Ordered](root *RBNode[T]) bool {
+	return root != nil && root.Red()
 }
 
-func IsBlack[T ordered.Ordered](node *RBNode[T]) bool {
-	return node == nil || node.Black()
+func IsBlack[T ordered.Ordered](root *RBNode[T]) bool {
+	return root == nil || root.Black()
 }
