@@ -74,14 +74,14 @@ func Balance[T ordered.Ordered](root *node.AVLNode[T]) *node.AVLNode[T] {
 	return root
 }
 
-func Kth[T ordered.Ordered](root *node.AVLNode[T], k uint32) (T, error) {
+func Kth[T ordered.Ordered](root *node.AVLNode[T], k uint32) *node.AVLNode[T] {
 	for root != nil {
 		leftSize := uint32(0)
 		if root.Left != nil {
 			leftSize = root.Left.Size
 		}
 		if leftSize+1 == k {
-			return root.Value, nil
+			return root
 		} else if leftSize+1 < k {
 			k -= leftSize + 1
 			root = root.Right
@@ -89,7 +89,7 @@ func Kth[T ordered.Ordered](root *node.AVLNode[T], k uint32) (T, error) {
 			root = root.Left
 		}
 	}
-	return T(rune(0)), errors.ErrOutOfRange
+	return nil
 }
 
 func Insert[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] {
@@ -123,13 +123,26 @@ func Delete[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] 
 		} else if root.Right == nil {
 			return root.Left
 		} else {
-			min, _ := Kth(root.Right, 1) // root.Right is not nil, so this will not fail
-			root.Value = min
-			root.Right = Delete(root.Right, min)
+			minNode := Kth(root.Right, 1) // root.Right is not nil, so this will not fail
+			root.Value = minNode.Value
+			root.Right = Delete(root.Right, minNode.Value)
 		}
 	}
 	root.Update()
 	return Balance(root)
+}
+
+func Find[T ordered.Ordered](root *node.AVLNode[T], value T) *node.AVLNode[T] {
+	for root != nil {
+		if value < root.Value {
+			root = root.Left
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			return root
+		}
+	}
+	return nil
 }
 
 func (thisTree *AVLTree[T]) Delete(value T) {
@@ -137,16 +150,7 @@ func (thisTree *AVLTree[T]) Delete(value T) {
 }
 
 func (thisTree *AVLTree[T]) Contains(value T) bool {
-	for root := thisTree.Root; root != nil; {
-		if root.Value == value {
-			return true
-		} else if root.Value < value {
-			root = root.Right
-		} else {
-			root = root.Left
-		}
-	}
-	return false
+	return Find(thisTree.Root, value) != nil
 }
 
 func (thisTree *AVLTree[T]) Size() uint32 {
@@ -164,7 +168,11 @@ func (thisTree *AVLTree[T]) Height() int32 {
 }
 
 func (thisTree *AVLTree[T]) Kth(k uint32) (T, error) {
-	return Kth(thisTree.Root, k)
+	result := Kth(thisTree.Root, k)
+	if result == nil {
+		return T(rune(0)), errors.ErrOutOfRange
+	}
+	return result.Value, nil
 }
 
 func (thisTree *AVLTree[T]) Empty() bool {

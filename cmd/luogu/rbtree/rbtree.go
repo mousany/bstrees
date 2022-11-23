@@ -358,6 +358,7 @@ func (thisTree *RBTree) Next(value int) (int, error) {
 	}
 	return next.Value, nil
 }
+
 func Read(istream *bufio.Reader) (int, error) {
 	res, sign := int(0), 1
 	readed := false

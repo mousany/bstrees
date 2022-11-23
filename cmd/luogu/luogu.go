@@ -7,357 +7,322 @@ import (
 	"os"
 )
 
-type RBColor bool
-
-const (
-	Red   RBColor = true
-	Black RBColor = false
-)
-
-type RBNode struct {
-	Value int
-	Left  *RBNode
-	Right *RBNode
-	Color RBColor
-	Size  uint32 // Size of subtree, unnecessary if you don'int need kth element
-	// Father *RBNode // Not necessary, but easier to implement
+type SplayNode struct {
+	Value  int
+	Left   *SplayNode
+	Right  *SplayNode
+	Parent *SplayNode
+	Size   uint32
 }
 
-func NewNode(value int) *RBNode {
-	return &RBNode{Value: value, Left: nil, Right: nil, Color: Red, Size: 1}
+func NewNode(value int) *SplayNode {
+	return &SplayNode{Value: value, Left: nil, Right: nil, Parent: nil, Size: 1}
 }
 
-func (thisNode *RBNode) Update() {
-	thisNode.Size = 1
-	if thisNode.Left != nil {
-		thisNode.Size += thisNode.Left.Size
+func (root *SplayNode) Update() {
+	root.Size = 1
+	if root.Left != nil {
+		root.Size += root.Left.Size
 	}
-	if thisNode.Right != nil {
-		thisNode.Size += thisNode.Right.Size
+	if root.Right != nil {
+		root.Size += root.Right.Size
 	}
 }
 
-func (thisNode *RBNode) Red() bool {
-	return thisNode.Color == Red
+func (root *SplayNode) Leaf() bool {
+	return root.Left == nil && root.Right == nil
 }
 
-func (thisNode *RBNode) Black() bool {
-	return thisNode.Color == Black
+func (root *SplayNode) Full() bool {
+	return root.Left != nil && root.Right != nil
 }
 
-func (thisNode *RBNode) Full() bool {
-	return thisNode.Left != nil && thisNode.Right != nil
-}
-
-func (thisNode *RBNode) Leaf() bool {
-	return thisNode.Left == nil && thisNode.Right == nil
-}
-
-func (thisNode *RBNode) Child(direction bool) *RBNode {
+func (root *SplayNode) SetChild(child *SplayNode, direction bool) {
 	if direction {
-		return thisNode.Right
+		root.Right = child
 	} else {
-		return thisNode.Left
+		root.Left = child
+	}
+	if child != nil {
+		child.Parent = root
 	}
 }
 
-func (thisNode *RBNode) SetChild(direction bool, child *RBNode) {
+func (root *SplayNode) Child(direction bool) *SplayNode {
 	if direction {
-		thisNode.Right = child
-	} else {
-		thisNode.Left = child
+		return root.Right
 	}
-	// thisNode.Update()
+	return root.Left
 }
 
-func IsRed(root *RBNode) bool {
-	return root != nil && root.Red()
+type Splay struct {
+	Root *SplayNode
 }
 
-func IsBlack(root *RBNode) bool {
-	return root == nil || root.Black()
+func New() *Splay {
+	return &Splay{Root: nil}
 }
 
-type RBTree struct {
-	Root *RBNode
+func LeftRotate(root *SplayNode) *SplayNode {
+	right := root.Right
+	root.SetChild(right.Left, true)
+	right.SetChild(root, false)
+	root.Update()
+	right.Update()
+	return right
 }
 
-func New() *RBTree {
-	return &RBTree{Root: nil}
+func RightRotate(root *SplayNode) *SplayNode {
+	left := root.Left
+	root.SetChild(left.Right, false)
+	left.SetChild(root, true)
+	root.Update()
+	left.Update()
+	return left
 }
 
-func Kth(root *RBNode, k uint32) (int, error) {
-	for root != nil {
+// Rotate root to its parent
+// After this operation, parent will be the child of root
+func RotateToParent(root *SplayNode) {
+	grandParent := root.Parent.Parent
+	if root == root.Parent.Left {
+		// root is left child
+		root = RightRotate(root.Parent)
+	} else {
+		// root is right child
+		root = LeftRotate(root.Parent)
+	}
+	if grandParent != nil {
+		if grandParent.Left == root.Parent {
+			grandParent.SetChild(root, false)
+			grandParent.Update()
+		} else {
+			grandParent.SetChild(root, true)
+			grandParent.Update()
+		}
+	}
+}
+
+// Rotate root to target
+// After this operation, target will be the child of root
+func SplayRotate(root, target *SplayNode) {
+	targetParent := target.Parent
+	for root.Parent != targetParent {
+		parent := root.Parent
+		grandParent := parent.Parent
+		direction := root == parent.Left
+		grandDirection := parent == grandParent.Left
+		if parent == target {
+			// root is the child of target
+			RotateToParent(root)
+		} else if direction == grandDirection {
+			// zig-zig
+			RotateToParent(parent)
+			RotateToParent(root)
+		} else {
+			// zig-zag
+			RotateToParent(root)
+			RotateToParent(root)
+		}
+	}
+}
+
+func Find(root *SplayNode, value int) *SplayNode {
+	for p := root; p != nil; {
+		if p.Value == value {
+			return p
+		} else if value < p.Value {
+			p = p.Left
+		} else {
+			p = p.Right
+		}
+	}
+	return nil
+}
+
+func Kth(root *SplayNode, k uint32) *SplayNode {
+	for p := root; p != nil; {
 		leftSize := uint32(0)
-		if root.Left != nil {
-			leftSize = root.Left.Size
+		if p.Left != nil {
+			leftSize = p.Left.Size
 		}
 		if leftSize+1 == k {
-			return root.Value, nil
+			// SplayRotate(p, root)
+			return p
 		} else if leftSize+1 < k {
 			k -= leftSize + 1
-			root = root.Right
+			p = p.Right
 		} else {
-			root = root.Left
+			p = p.Left
 		}
 	}
-	return int(rune(0)), errors.New("index out of range")
+	return nil
 }
 
-func SingleRotate(root *RBNode, direction bool) *RBNode {
-	save := root.Child(!direction)
-	root.SetChild(!direction, save.Child(direction))
-	save.SetChild(direction, root)
-	root.Update()
-	save.Update()
-	root.Color = Red
-	save.Color = Black
-	return save
-}
-
-func DoubleRotate(root *RBNode, direction bool) *RBNode {
-	root.SetChild(!direction, SingleRotate(root.Child(!direction), !direction))
-	return SingleRotate(root, direction)
-}
-
-// https://archive.ph/EJTsz, Eternally Confuzzled's Blog
-func (thisTree *RBTree) Insert(value int) {
-	if thisTree.Root == nil {
-		thisTree.Root = NewNode(value)
+func Insert(root *SplayNode, value int) *SplayNode {
+	if root == nil {
+		return NewNode(value)
 	} else {
-		superRoot := NewNode(int(rune(0))) // Head in Eternally Confuzzled's paper
-		superRoot.Right = thisTree.Root
+		superRoot := NewNode(int(rune(0)))
+		superRoot.SetChild(root, true)
 
-		var child *RBNode = thisTree.Root        // Q in Eternally Confuzzled's paper
-		var parent *RBNode = nil                 // P in Eternally Confuzzled's paper
-		var grandParent *RBNode = nil            // G in Eternally Confuzzled's paper
-		var greatGrandParent *RBNode = superRoot // int in Eternally Confuzzled's paper
-
-		var direction bool = false
-		var lastDirection bool = false
-
-		// Search down
-		for ok := false; !ok; {
-			if child == nil {
-				// Insert new node at the bottom
-				child = NewNode(value)
-				parent.SetChild(direction, child)
-				ok = true
-			} else {
-				// Update size
-				child.Size += 1
-				if IsRed(child.Left) && IsRed(child.Right) {
-					// Color flip
-					child.Color = Red
-					child.Left.Color = Black
-					child.Right.Color = Black
-				}
-			}
-
-			if IsRed(child) && IsRed(parent) {
-				// Fix red violation
-				direction2 := greatGrandParent.Right == grandParent
-				if child == parent.Child(lastDirection) {
-					greatGrandParent.SetChild(direction2, SingleRotate(grandParent, !lastDirection))
+		for p := root; p != nil; {
+			p.Size += 1
+			if value < p.Value {
+				if p.Left == nil {
+					p.SetChild(NewNode(value), false)
+					SplayRotate(p.Left, root)
+					break
 				} else {
-					greatGrandParent.SetChild(direction2, DoubleRotate(grandParent, !lastDirection))
-					if !ok {
-						greatGrandParent.Child(direction2).Size += 1
-					}
+					p = p.Left
 				}
-			}
-
-			lastDirection = direction
-			direction = child.Value < value
-			if grandParent != nil {
-				greatGrandParent = grandParent
-			}
-
-			grandParent = parent
-			parent = child
-			child = child.Child(direction)
-		}
-
-		// Update root
-		thisTree.Root = superRoot.Right
-	}
-
-	thisTree.Root.Color = Black
-}
-
-func (thisTree *RBTree) Contains(value int) bool {
-	for root := thisTree.Root; root != nil; {
-		if root.Value == value {
-			return true
-		} else if root.Value < value {
-			root = root.Right
-		} else {
-			root = root.Left
-		}
-	}
-	return false
-}
-
-func (thisTree *RBTree) Delete(value int) {
-	if thisTree.Root != nil && thisTree.Contains(value) {
-		superRoot := NewNode(int(rune(0))) // Head in Eternally Confuzzled's paper
-		superRoot.Right = thisTree.Root
-
-		var child *RBNode = superRoot // Q in Eternally Confuzzled's paper
-		var parent *RBNode = nil      // P in Eternally Confuzzled's paper
-		var grandParent *RBNode = nil // G in Eternally Confuzzled's paper
-		var target *RBNode = nil      // F in Eternally Confuzzled's paper
-		direction := true
-
-		// Search and push a red down
-		for child.Child(direction) != nil {
-			lastDirection := direction
-
-			grandParent = parent
-			parent = child
-			child = child.Child(direction)
-			direction = child.Value < value
-
-			// Update size
-			child.Size -= 1
-
-			// Save the target node
-			if child.Value == value {
-				target = child
-			}
-
-			// Push the red node down
-			if !IsRed(child) && !IsRed(child.Child(direction)) {
-				if IsRed(child.Child(!direction)) {
-					parent.SetChild(lastDirection, SingleRotate(child, direction))
-					parent = parent.Child(lastDirection)
-					child.Size -= 1
-					parent.Update()
-				} else if !IsRed(child.Child(!direction)) {
-					sibling := parent.Child(!lastDirection)
-					if sibling != nil {
-						if !IsRed(sibling.Child(!lastDirection)) && !IsRed(sibling.Child(lastDirection)) {
-							// Color flip
-							parent.Color = Black
-							sibling.Color = Red
-							child.Color = Red
-						} else {
-							direction2 := grandParent.Right == parent
-							if IsRed(sibling.Child(lastDirection)) {
-								grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
-							} else if IsRed(sibling.Child(!lastDirection)) {
-								grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
-							}
-
-							// // Update Size
-							// parent.Update()
-							// grandParent.Child(direction2).Update()
-
-							// Ensure correct coloring
-							child.Color = Red
-							grandParent.Child(direction2).Color = Red
-							grandParent.Child(direction2).Left.Color = Black
-							grandParent.Child(direction2).Right.Color = Black
-						}
-					}
+			} else {
+				if p.Right == nil {
+					p.SetChild(NewNode(value), true)
+					SplayRotate(p.Right, root)
+					break
+				} else {
+					p = p.Right
 				}
 			}
 		}
 
-		// Replace and remove the target node
-		if target != nil {
-			target.Value = child.Value
-			parent.SetChild(parent.Right == child, child.Child(child.Left == nil))
-		}
-
-		// Update root and make it black
-		thisTree.Root = superRoot.Right
-		if thisTree.Root != nil {
-			thisTree.Root.Color = Black
-		}
+		superRoot.Right.Parent = nil
+		return superRoot.Right
 	}
 }
 
-func (thisTree *RBTree) Size() uint32 {
+func Delete(root *SplayNode, value int) *SplayNode {
+	if root == nil {
+		return nil
+	}
+	superRoot := NewNode(int(rune(0)))
+	superRoot.SetChild(root, true)
+	p := Find(root, value)
+	if p == nil {
+		root.Parent = nil
+		return root
+	}
+	SplayRotate(p, root)
+	if p.Left == nil && p.Right == nil {
+		superRoot.SetChild(nil, true)
+	} else if p.Left == nil {
+		superRoot.SetChild(p.Right, true)
+	} else if p.Right == nil {
+		superRoot.SetChild(p.Left, true)
+	} else {
+		maxLeft := p.Left
+		for maxLeft.Right != nil {
+			maxLeft.Size -= 1
+			maxLeft = maxLeft.Right
+		}
+		SplayRotate(maxLeft, superRoot.Right)
+		maxLeft.SetChild(p.Right, true)
+		superRoot.SetChild(maxLeft, true)
+		superRoot.Right.Update()
+	}
+	superRoot.Right.Parent = nil
+	return superRoot.Right
+}
+
+func (thisTree *Splay) Insert(value int) {
+	thisTree.Root = Insert(thisTree.Root, value)
+}
+
+func (thisTree *Splay) Delete(value int) {
+	thisTree.Root = Delete(thisTree.Root, value)
+}
+
+func (thisTree *Splay) Contains(value int) bool {
+	return Find(thisTree.Root, value) != nil
+}
+
+func (thisTree *Splay) Kth(k uint32) (int, error) {
+	result := Kth(thisTree.Root, k)
+	if result == nil {
+		return int(rune(0)), errors.New("k is out of range")
+	}
+	return result.Value, nil
+}
+
+func (thisTree *Splay) Size() uint32 {
 	if thisTree.Root == nil {
 		return 0
 	}
 	return thisTree.Root.Size
 }
 
-func (thisTree *RBTree) Kth(k uint32) (int, error) {
-	return Kth(thisTree.Root, k)
-}
-
-func (thisTree *RBTree) Empty() bool {
+func (thisTree *Splay) Empty() bool {
 	return thisTree.Root == nil
 }
 
-func (thisTree *RBTree) Clear() {
+func (thisTree *Splay) Clear() {
 	thisTree.Root = nil
 }
 
-func Rank(root *RBNode, value int) uint32 {
+func (thisTree *Splay) Rank(value int) uint32 {
 	rank := uint32(0)
-	for root != nil {
-		if root.Value < value {
+	for p := thisTree.Root; p != nil; {
+		if value < p.Value {
+			p = p.Left
+		} else if value > p.Value {
 			rank += 1
-			if root.Left != nil {
-				rank += root.Left.Size
+			if p.Left != nil {
+				rank += p.Left.Size
 			}
-			root = root.Right
+			p = p.Right
 		} else {
-			root = root.Left
+			if p.Left != nil {
+				rank += p.Left.Size
+			}
+			break
 		}
 	}
 	return rank + 1
 }
 
-func (thisTree *RBTree) Rank(value int) uint32 {
-	return Rank(thisTree.Root, value)
-}
-
-func Prev(root *RBNode, value int) *RBNode {
-	var prev *RBNode = nil
-	for root != nil {
-		if root.Value < value {
-			prev = root
-			root = root.Right
+func Prev(root *SplayNode, value int) *SplayNode {
+	var result *SplayNode
+	for p := root; p != nil; {
+		if value > p.Value {
+			result = p
+			p = p.Right
 		} else {
-			root = root.Left
+			p = p.Left
 		}
 	}
-	return prev
+	return result
 }
 
-func (thisTree *RBTree) Prev(value int) (int, error) {
+func (thisTree *Splay) Prev(value int) (int, error) {
 	prev := Prev(thisTree.Root, value)
 	if prev == nil {
-		return int(rune(0)), errors.New("No previous value")
+		return int(rune(0)), errors.New("no prev value")
 	}
 	return prev.Value, nil
 }
 
-func Next(root *RBNode, value int) *RBNode {
-	var next *RBNode = nil
-	for root != nil {
-		if root.Value > value {
-			next = root
-			root = root.Left
+func Next(root *SplayNode, value int) *SplayNode {
+	var result *SplayNode
+	for p := root; p != nil; {
+		if value < p.Value {
+			result = p
+			p = p.Left
 		} else {
-			root = root.Right
+			p = p.Right
 		}
 	}
-	return next
+	return result
 }
 
-func (thisTree *RBTree) Next(value int) (int, error) {
+func (thisTree *Splay) Next(value int) (int, error) {
 	next := Next(thisTree.Root, value)
 	if next == nil {
-		return int(rune(0)), errors.New("No next value")
+		return int(rune(0)), errors.New("no next value")
 	}
 	return next.Value, nil
 }
+
 func Read(istream *bufio.Reader) (int, error) {
 	res, sign := int(0), 1
 	readed := false

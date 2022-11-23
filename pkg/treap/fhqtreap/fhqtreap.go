@@ -67,6 +67,19 @@ func Kth[T number.Number](root *node.TreapNode[T], k uint32) *node.TreapNode[T] 
 	return nil
 }
 
+func Find[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] {
+	for root != nil {
+		if value < root.Value {
+			root = root.Left
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			return root
+		}
+	}
+	return nil
+}
+
 func (thisTree *FHQTreap[T]) Insert(value T) {
 	left, right := Split(thisTree.Root, value)
 	thisTree.Root = Merge(Merge(left, node.New(value)), right)
@@ -82,16 +95,7 @@ func (thisTree *FHQTreap[T]) Delete(value T) {
 }
 
 func (thisTree *FHQTreap[T]) Contains(value T) bool {
-	for root := thisTree.Root; root != nil; {
-		if root.Value == value {
-			return true
-		} else if root.Value < value {
-			root = root.Right
-		} else {
-			root = root.Left
-		}
-	}
-	return false
+	return Find(thisTree.Root, value) != nil
 }
 
 func (thisTree *FHQTreap[T]) Rank(value T) uint32 {
@@ -128,6 +132,19 @@ func (thisTree *FHQTreap[T]) Clear() {
 	thisTree.Root = nil
 }
 
+func Prev[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] {
+	var result *node.TreapNode[T] = nil
+	for root != nil {
+		if root.Value < value {
+			result = root
+			root = root.Right
+		} else {
+			root = root.Left
+		}
+	}
+	return result
+}
+
 func (thisTree *FHQTreap[T]) Prev(value T) (T, error) {
 	left, right := Split(thisTree.Root, value-1)
 	defer func() {
@@ -138,6 +155,19 @@ func (thisTree *FHQTreap[T]) Prev(value T) (T, error) {
 		return T(0), errors.ErrNoPrevValue
 	}
 	return result.Value, nil
+}
+
+func Next[T number.Number](root *node.TreapNode[T], value T) *node.TreapNode[T] {
+	var result *node.TreapNode[T] = nil
+	for root != nil {
+		if value < root.Value {
+			result = root
+			root = root.Left
+		} else {
+			root = root.Right
+		}
+	}
+	return result
 }
 
 func (thisTree *FHQTreap[T]) Next(value T) (T, error) {

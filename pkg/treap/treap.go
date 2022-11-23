@@ -50,6 +50,23 @@ func Kth[T ordered.Ordered](root *node.TreapNode[T], k uint32) *node.TreapNode[T
 	return nil
 }
 
+func Find[T ordered.Ordered](root *node.TreapNode[T], value T) *node.TreapNode[T] {
+	for root != nil {
+		if value < root.Value {
+			root = root.Left
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			return root
+		}
+	}
+	return nil
+}
+
+func (thisTree *Treap[T]) Contains(value T) bool {
+	return Find(thisTree.Root, value) != nil
+}
+
 func Insert[T ordered.Ordered](root *node.TreapNode[T], value T) *node.TreapNode[T] {
 	if root == nil {
 		return node.New(value)
@@ -102,19 +119,6 @@ func Delete[T ordered.Ordered](root *node.TreapNode[T], value T) *node.TreapNode
 
 func (thisTree *Treap[T]) Delete(value T) {
 	thisTree.Root = Delete(thisTree.Root, value)
-}
-
-func (thisTree *Treap[T]) Contains(value T) bool {
-	for root := thisTree.Root; root != nil; {
-		if root.Value == value {
-			return true
-		} else if root.Value < value {
-			root = root.Right
-		} else {
-			root = root.Left
-		}
-	}
-	return false
 }
 
 func (thisTree *Treap[T]) Kth(k uint32) (T, error) {

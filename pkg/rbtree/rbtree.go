@@ -14,14 +14,14 @@ func New[T ordered.Ordered]() *RBTree[T] {
 	return &RBTree[T]{Root: nil}
 }
 
-func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) (T, error) {
+func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) *node.RBNode[T] {
 	for root != nil {
 		leftSize := uint32(0)
 		if root.Left != nil {
 			leftSize = root.Left.Size
 		}
 		if leftSize+1 == k {
-			return root.Value, nil
+			return root
 		} else if leftSize+1 < k {
 			k -= leftSize + 1
 			root = root.Right
@@ -29,7 +29,7 @@ func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) (T, error) {
 			root = root.Left
 		}
 	}
-	return T(rune(0)), errors.ErrOutOfRange
+	return nil
 }
 
 func SingleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node.RBNode[T] {
@@ -49,14 +49,14 @@ func DoubleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node
 }
 
 // https://archive.ph/EJTsz, Eternally Confuzzled's Blog
-func (thisTree *RBTree[T]) Insert(value T) {
-	if thisTree.Root == nil {
-		thisTree.Root = node.New(value)
+func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
+	if root == nil {
+		root = node.New(value)
 	} else {
 		superRoot := node.New(T(rune(0))) // Head in Eternally Confuzzled's paper
-		superRoot.Right = thisTree.Root
+		superRoot.Right = root
 
-		var child *node.RBNode[T] = thisTree.Root        // Q in Eternally Confuzzled's paper
+		var child *node.RBNode[T] = root                 // Q in Eternally Confuzzled's paper
 		var parent *node.RBNode[T] = nil                 // P in Eternally Confuzzled's paper
 		var grandParent *node.RBNode[T] = nil            // G in Eternally Confuzzled's paper
 		var greatGrandParent *node.RBNode[T] = superRoot // T in Eternally Confuzzled's paper
@@ -111,109 +111,123 @@ func (thisTree *RBTree[T]) Insert(value T) {
 		}
 
 		// Update root
-		thisTree.Root = superRoot.Right
+		root = superRoot.Right
 	}
-
-	thisTree.Root.Color = node.Black
+	root.Color = node.Black
+	return root
 }
 
-func (thisTree *RBTree[T]) Contains(value T) bool {
-	for root := thisTree.Root; root != nil; {
+func (thisTree *RBTree[T]) Insert(value T) {
+	thisTree.Root = Insert(thisTree.Root, value)
+}
+
+func Find[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
+	for root != nil {
 		if root.Value == value {
-			return true
+			return root
 		} else if root.Value < value {
 			root = root.Right
 		} else {
 			root = root.Left
 		}
 	}
-	return false
+	return nil
 }
 
-func (thisTree *RBTree[T]) Delete(value T) {
-	if thisTree.Root != nil && thisTree.Contains(value) {
-		superRoot := node.New(T(rune(0))) // Head in Eternally Confuzzled's paper
-		superRoot.Right = thisTree.Root
+func (thisTree *RBTree[T]) Contains(value T) bool {
+	return Find(thisTree.Root, value) != nil
+}
 
-		var child *node.RBNode[T] = superRoot // Q in Eternally Confuzzled's paper
-		var parent *node.RBNode[T] = nil      // P in Eternally Confuzzled's paper
-		var grandParent *node.RBNode[T] = nil // G in Eternally Confuzzled's paper
-		var target *node.RBNode[T] = nil      // F in Eternally Confuzzled's paper
-		direction := true
+func Delete[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
+	if root == nil || Find(root, value) == nil {
+		return root
+	}
+	superRoot := node.New(T(rune(0))) // Head in Eternally Confuzzled's paper
+	superRoot.Right = root
 
-		// Search and push a red down
-		for child.Child(direction) != nil {
-			lastDirection := direction
+	var child *node.RBNode[T] = superRoot // Q in Eternally Confuzzled's paper
+	var parent *node.RBNode[T] = nil      // P in Eternally Confuzzled's paper
+	var grandParent *node.RBNode[T] = nil // G in Eternally Confuzzled's paper
+	var target *node.RBNode[T] = nil      // F in Eternally Confuzzled's paper
+	direction := true
 
-			grandParent = parent
-			parent = child
-			child = child.Child(direction)
-			direction = child.Value < value
+	// Search and push a red down
+	for child.Child(direction) != nil {
+		lastDirection := direction
 
-			// Update size
-			child.Size -= 1
+		grandParent = parent
+		parent = child
+		child = child.Child(direction)
+		direction = child.Value < value
 
-			// Save the target node
-			if child.Value == value {
-				target = child
-			}
+		// Update size
+		child.Size -= 1
 
-			// Push the red node down
-			if !node.IsRed(child) && !node.IsRed(child.Child(direction)) {
-				if node.IsRed(child.Child(!direction)) {
-					parent.SetChild(lastDirection, SingleRotate(child, direction))
-					parent = parent.Child(lastDirection)
+		// Save the target node
+		if child.Value == value {
+			target = child
+		}
 
-					// When performing a single rotation to child, child is affected.
-					// So we need to update child and sibling(now parent)'s size.
-					child.Size -= 1
-					parent.Update()
-				} else if !node.IsRed(child.Child(!direction)) {
-					sibling := parent.Child(!lastDirection)
-					if sibling != nil {
-						if !node.IsRed(sibling.Child(!lastDirection)) && !node.IsRed(sibling.Child(lastDirection)) {
-							// Color flip
-							parent.Color = node.Black
-							sibling.Color = node.Red
-							child.Color = node.Red
-						} else {
-							direction2 := grandParent.Right == parent
-							if node.IsRed(sibling.Child(lastDirection)) {
-								grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
-							} else if node.IsRed(sibling.Child(!lastDirection)) {
-								grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
-							}
+		// Push the red node down
+		if !node.IsRed(child) && !node.IsRed(child.Child(direction)) {
+			if node.IsRed(child.Child(!direction)) {
+				parent.SetChild(lastDirection, SingleRotate(child, direction))
+				parent = parent.Child(lastDirection)
 
-							// When performing a rotation to parent, child is not affected.
-							// So all nodes on the path are -1ed.
-
-							// // Update Size
-							// parent.Update()
-							// grandParent.Child(direction2).Update()
-
-							// Ensure correct coloring
-							child.Color = node.Red
-							grandParent.Child(direction2).Color = node.Red
-							grandParent.Child(direction2).Left.Color = node.Black
-							grandParent.Child(direction2).Right.Color = node.Black
+				// When performing a single rotation to child, child is affected.
+				// So we need to update child and sibling(now parent)'s size.
+				child.Size -= 1
+				parent.Update()
+			} else if !node.IsRed(child.Child(!direction)) {
+				sibling := parent.Child(!lastDirection)
+				if sibling != nil {
+					if !node.IsRed(sibling.Child(!lastDirection)) && !node.IsRed(sibling.Child(lastDirection)) {
+						// Color flip
+						parent.Color = node.Black
+						sibling.Color = node.Red
+						child.Color = node.Red
+					} else {
+						direction2 := grandParent.Right == parent
+						if node.IsRed(sibling.Child(lastDirection)) {
+							grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
+						} else if node.IsRed(sibling.Child(!lastDirection)) {
+							grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
 						}
+
+						// When performing a rotation to parent, child is not affected.
+						// So all nodes on the path are -1ed.
+
+						// // Update Size
+						// parent.Update()
+						// grandParent.Child(direction2).Update()
+
+						// Ensure correct coloring
+						child.Color = node.Red
+						grandParent.Child(direction2).Color = node.Red
+						grandParent.Child(direction2).Left.Color = node.Black
+						grandParent.Child(direction2).Right.Color = node.Black
 					}
 				}
 			}
 		}
-
-		// Replace and remove the target node
-		if target != nil {
-			target.Value = child.Value
-			parent.SetChild(parent.Right == child, child.Child(child.Left == nil))
-		}
-
-		// Update root and make it black
-		thisTree.Root = superRoot.Right
-		if thisTree.Root != nil {
-			thisTree.Root.Color = node.Black
-		}
 	}
+
+	// Replace and remove the target node
+	if target != nil {
+		target.Value = child.Value
+		parent.SetChild(parent.Right == child, child.Child(child.Left == nil))
+	}
+
+	// Update root and make it black
+	root = superRoot.Right
+	if root != nil {
+		root.Color = node.Black
+	}
+	return root
+}
+
+func (thisTree *RBTree[T]) Delete(value T) {
+	thisTree.Root = Delete(thisTree.Root, value)
 }
 
 func (thisTree *RBTree[T]) Size() uint32 {
@@ -224,7 +238,11 @@ func (thisTree *RBTree[T]) Size() uint32 {
 }
 
 func (thisTree *RBTree[T]) Kth(k uint32) (T, error) {
-	return Kth(thisTree.Root, k)
+	result := Kth(thisTree.Root, k)
+	if result == nil {
+		return T(rune(0)), errors.ErrOutOfRange
+	}
+	return result.Value, nil
 }
 
 func (thisTree *RBTree[T]) Empty() bool {
