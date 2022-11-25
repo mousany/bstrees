@@ -8,14 +8,24 @@ type SplayNode[T ordered.Ordered] struct {
 	Right  *SplayNode[T]
 	Parent *SplayNode[T]
 	Size   uint32
+	Rec    uint32 // This field is Splay only
+	// Because Splay operation will scatter nodes with the same value
+	// While traditional BST search mechanics is too slow on Splay
 }
 
 func New[T ordered.Ordered](value T) *SplayNode[T] {
-	return &SplayNode[T]{Value: value, Left: nil, Right: nil, Parent: nil, Size: 1}
+	return &SplayNode[T]{
+		Value:  value,
+		Left:   nil,
+		Right:  nil,
+		Parent: nil,
+		Size:   1,
+		Rec:    1,
+	}
 }
 
 func (root *SplayNode[T]) Update() {
-	root.Size = 1
+	root.Size = root.Rec
 	if root.Left != nil {
 		root.Size += root.Left.Size
 	}

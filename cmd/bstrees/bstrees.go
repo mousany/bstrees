@@ -5,6 +5,7 @@ import (
 	"bstrees/pkg/trait/number"
 	"bstrees/pkg/util/console"
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 )
@@ -24,12 +25,17 @@ func main() {
 	for i := 0; i < n; i++ {
 		opt := ReadWithPanic[int](gin)
 		value := ReadWithPanic[int](gin)
+		// fmt.Println("----------------")
+		// fmt.Println(opt, value)
 		switch opt {
 		case 1:
 			tree.Insert(value)
 		case 2:
 			tree.Delete(value)
 		case 3:
+			if !tree.Contains(value) {
+				panic(errors.New("Shit"))
+			}
 			fmt.Println(tree.Rank(value))
 		case 4:
 			{

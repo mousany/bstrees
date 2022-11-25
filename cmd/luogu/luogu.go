@@ -13,14 +13,24 @@ type SplayNode struct {
 	Right  *SplayNode
 	Parent *SplayNode
 	Size   uint32
+	Rec    uint32 // This field is Splay only
+	// Because Splay operation will scatter nodes with the same value
+	// While traditional BST search mechanics is too slow on Splay
 }
 
 func NewNode(value int) *SplayNode {
-	return &SplayNode{Value: value, Left: nil, Right: nil, Parent: nil, Size: 1}
+	return &SplayNode{
+		Value:  value,
+		Left:   nil,
+		Right:  nil,
+		Parent: nil,
+		Size:   1,
+		Rec:    1,
+	}
 }
 
 func (root *SplayNode) Update() {
-	root.Size = 1
+	root.Size = root.Rec
 	if root.Left != nil {
 		root.Size += root.Left.Size
 	}
@@ -56,11 +66,21 @@ func (root *SplayNode) Child(direction bool) *SplayNode {
 }
 
 type Splay struct {
-	Root *SplayNode
+	superRoot *SplayNode
+}
+
+func (thisTree *Splay) Root() *SplayNode {
+	return thisTree.superRoot.Right
+}
+
+func (thisTree *Splay) SetRoot(root *SplayNode) {
+	thisTree.superRoot.SetChild(root, true)
 }
 
 func New() *Splay {
-	return &Splay{Root: nil}
+	return &Splay{
+		superRoot: NewNode(int(rune(0))),
+	}
 }
 
 func LeftRotate(root *SplayNode) *SplayNode {
@@ -146,11 +166,11 @@ func Kth(root *SplayNode, k uint32) *SplayNode {
 		if p.Left != nil {
 			leftSize = p.Left.Size
 		}
-		if leftSize+1 == k {
+		if leftSize < k && leftSize+p.Rec >= k {
 			// SplayRotate(p, root)
 			return p
-		} else if leftSize+1 < k {
-			k -= leftSize + 1
+		} else if leftSize+p.Rec < k {
+			k -= leftSize + p.Rec
 			p = p.Right
 		} else {
 			p = p.Left
@@ -163,12 +183,15 @@ func Insert(root *SplayNode, value int) *SplayNode {
 	if root == nil {
 		return NewNode(value)
 	} else {
-		superRoot := NewNode(int(rune(0)))
-		superRoot.SetChild(root, true)
+		superRoot := root.Parent
 
 		for p := root; p != nil; {
 			p.Size += 1
-			if value < p.Value {
+			if value == p.Value {
+				p.Rec += 1
+				SplayRotate(p, root)
+				break
+			} else if value < p.Value {
 				if p.Left == nil {
 					p.SetChild(NewNode(value), false)
 					SplayRotate(p.Left, root)
@@ -187,7 +210,6 @@ func Insert(root *SplayNode, value int) *SplayNode {
 			}
 		}
 
-		superRoot.Right.Parent = nil
 		return superRoot.Right
 	}
 }
@@ -196,49 +218,52 @@ func Delete(root *SplayNode, value int) *SplayNode {
 	if root == nil {
 		return nil
 	}
-	superRoot := NewNode(int(rune(0)))
-	superRoot.SetChild(root, true)
+	superRoot := root.Parent
 	p := Find(root, value)
 	if p == nil {
-		root.Parent = nil
 		return root
 	}
 	SplayRotate(p, root)
-	if p.Left == nil && p.Right == nil {
-		superRoot.SetChild(nil, true)
-	} else if p.Left == nil {
-		superRoot.SetChild(p.Right, true)
-	} else if p.Right == nil {
-		superRoot.SetChild(p.Left, true)
+	if p.Rec > 1 {
+		p.Rec -= 1
+		p.Size -= 1
 	} else {
-		maxLeft := p.Left
-		for maxLeft.Right != nil {
-			maxLeft.Size -= 1
-			maxLeft = maxLeft.Right
+		if p.Left == nil && p.Right == nil {
+			superRoot.SetChild(nil, true)
+		} else if p.Left == nil {
+			superRoot.SetChild(p.Right, true)
+		} else if p.Right == nil {
+			superRoot.SetChild(p.Left, true)
+		} else {
+			maxLeft := p.Left
+			for maxLeft.Right != nil {
+				maxLeft.Size -= 1
+				maxLeft = maxLeft.Right
+			}
+			SplayRotate(maxLeft, superRoot.Right)
+			maxLeft.SetChild(p.Right, true)
+			superRoot.SetChild(maxLeft, true)
+			superRoot.Right.Update()
 		}
-		SplayRotate(maxLeft, superRoot.Right)
-		maxLeft.SetChild(p.Right, true)
-		superRoot.SetChild(maxLeft, true)
-		superRoot.Right.Update()
 	}
-	superRoot.Right.Parent = nil
+
 	return superRoot.Right
 }
 
 func (thisTree *Splay) Insert(value int) {
-	thisTree.Root = Insert(thisTree.Root, value)
+	thisTree.SetRoot(Insert(thisTree.Root(), value))
 }
 
 func (thisTree *Splay) Delete(value int) {
-	thisTree.Root = Delete(thisTree.Root, value)
+	thisTree.SetRoot(Delete(thisTree.Root(), value))
 }
 
 func (thisTree *Splay) Contains(value int) bool {
-	return Find(thisTree.Root, value) != nil
+	return Find(thisTree.Root(), value) != nil
 }
 
 func (thisTree *Splay) Kth(k uint32) (int, error) {
-	result := Kth(thisTree.Root, k)
+	result := Kth(thisTree.Root(), k)
 	if result == nil {
 		return int(rune(0)), errors.New("k is out of range")
 	}
@@ -246,39 +271,47 @@ func (thisTree *Splay) Kth(k uint32) (int, error) {
 }
 
 func (thisTree *Splay) Size() uint32 {
-	if thisTree.Root == nil {
+	if thisTree.Root() == nil {
 		return 0
 	}
-	return thisTree.Root.Size
+	return thisTree.Root().Size
 }
 
 func (thisTree *Splay) Empty() bool {
-	return thisTree.Root == nil
+	return thisTree.Root() == nil
 }
 
 func (thisTree *Splay) Clear() {
-	thisTree.Root = nil
+	thisTree.SetRoot(nil)
 }
 
-func (thisTree *Splay) Rank(value int) uint32 {
+func Rank(root *SplayNode, value int) uint32 {
 	rank := uint32(0)
-	for p := thisTree.Root; p != nil; {
-		if value < p.Value {
-			p = p.Left
-		} else if value > p.Value {
+	for root != nil {
+		if root.Value < value {
 			rank += 1
-			if p.Left != nil {
-				rank += p.Left.Size
+			if root.Left != nil {
+				rank += root.Left.Size
 			}
-			p = p.Right
+			root = root.Right
 		} else {
-			if p.Left != nil {
-				rank += p.Left.Size
-			}
-			break
+			root = root.Left
 		}
 	}
 	return rank + 1
+}
+
+func (thisTree *Splay) Rank(value int) uint32 {
+	// return Rank(thisTree.Root, value)
+	p := Find(thisTree.Root(), value)
+	if p == nil {
+		return 0
+	}
+	SplayRotate(p, thisTree.Root())
+	if p.Left != nil {
+		return p.Left.Size + 1
+	}
+	return 1
 }
 
 func Prev(root *SplayNode, value int) *SplayNode {
@@ -295,7 +328,7 @@ func Prev(root *SplayNode, value int) *SplayNode {
 }
 
 func (thisTree *Splay) Prev(value int) (int, error) {
-	prev := Prev(thisTree.Root, value)
+	prev := Prev(thisTree.Root(), value)
 	if prev == nil {
 		return int(rune(0)), errors.New("no prev value")
 	}
@@ -316,7 +349,7 @@ func Next(root *SplayNode, value int) *SplayNode {
 }
 
 func (thisTree *Splay) Next(value int) (int, error) {
-	next := Next(thisTree.Root, value)
+	next := Next(thisTree.Root(), value)
 	if next == nil {
 		return int(rune(0)), errors.New("no next value")
 	}

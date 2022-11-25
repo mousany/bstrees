@@ -1,30 +1,89 @@
-package splay
+package main
 
 import (
-	"bstrees/pkg/errors"
-	"bstrees/pkg/splay/node"
-	"bstrees/pkg/trait/ordered"
+	"bufio"
+	"errors"
+	"fmt"
+	"os"
 )
 
-type Splay[T ordered.Ordered] struct {
-	superRoot *node.SplayNode[T]
+type SplayNode struct {
+	Value  int
+	Left   *SplayNode
+	Right  *SplayNode
+	Parent *SplayNode
+	Size   uint32
+	Rec    uint32 // This field is Splay only
+	// Because Splay operation will scatter nodes with the same value
+	// While traditional BST search mechanics is too slow on Splay
 }
 
-func (thisTree *Splay[T]) Root() *node.SplayNode[T] {
-	return thisTree.superRoot.Right
-}
-
-func (thisTree *Splay[T]) SetRoot(root *node.SplayNode[T]) {
-	thisTree.superRoot.SetChild(root, true)
-}
-
-func New[T ordered.Ordered]() *Splay[T] {
-	return &Splay[T]{
-		superRoot: node.New(T(rune(0))),
+func NewNode(value int) *SplayNode {
+	return &SplayNode{
+		Value:  value,
+		Left:   nil,
+		Right:  nil,
+		Parent: nil,
+		Size:   1,
+		Rec:    1,
 	}
 }
 
-func LeftRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] {
+func (root *SplayNode) Update() {
+	root.Size = root.Rec
+	if root.Left != nil {
+		root.Size += root.Left.Size
+	}
+	if root.Right != nil {
+		root.Size += root.Right.Size
+	}
+}
+
+func (root *SplayNode) Leaf() bool {
+	return root.Left == nil && root.Right == nil
+}
+
+func (root *SplayNode) Full() bool {
+	return root.Left != nil && root.Right != nil
+}
+
+func (root *SplayNode) SetChild(child *SplayNode, direction bool) {
+	if direction {
+		root.Right = child
+	} else {
+		root.Left = child
+	}
+	if child != nil {
+		child.Parent = root
+	}
+}
+
+func (root *SplayNode) Child(direction bool) *SplayNode {
+	if direction {
+		return root.Right
+	}
+	return root.Left
+}
+
+type Splay struct {
+	superRoot *SplayNode
+}
+
+func (thisTree *Splay) Root() *SplayNode {
+	return thisTree.superRoot.Right
+}
+
+func (thisTree *Splay) SetRoot(root *SplayNode) {
+	thisTree.superRoot.SetChild(root, true)
+}
+
+func New() *Splay {
+	return &Splay{
+		superRoot: NewNode(int(rune(0))),
+	}
+}
+
+func LeftRotate(root *SplayNode) *SplayNode {
 	right := root.Right
 	root.SetChild(right.Left, true)
 	right.SetChild(root, false)
@@ -33,7 +92,7 @@ func LeftRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] {
 	return right
 }
 
-func RightRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] {
+func RightRotate(root *SplayNode) *SplayNode {
 	left := root.Left
 	root.SetChild(left.Right, false)
 	left.SetChild(root, true)
@@ -44,7 +103,7 @@ func RightRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] 
 
 // Rotate root to its parent
 // After this operation, parent will be the child of root
-func RotateToParent[T ordered.Ordered](root *node.SplayNode[T]) {
+func RotateToParent(root *SplayNode) {
 	grandParent := root.Parent.Parent
 	if root == root.Parent.Left {
 		// root is left child
@@ -66,7 +125,7 @@ func RotateToParent[T ordered.Ordered](root *node.SplayNode[T]) {
 
 // Rotate root to target
 // After this operation, target will be the child of root
-func SplayRotate[T ordered.Ordered](root, target *node.SplayNode[T]) {
+func SplayRotate(root, target *SplayNode) {
 	targetParent := target.Parent
 	for root.Parent != targetParent {
 		parent := root.Parent
@@ -88,7 +147,7 @@ func SplayRotate[T ordered.Ordered](root, target *node.SplayNode[T]) {
 	}
 }
 
-func Find[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
+func Find(root *SplayNode, value int) *SplayNode {
 	for p := root; p != nil; {
 		if p.Value == value {
 			return p
@@ -101,7 +160,7 @@ func Find[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T
 	return nil
 }
 
-func Kth[T ordered.Ordered](root *node.SplayNode[T], k uint32) *node.SplayNode[T] {
+func Kth(root *SplayNode, k uint32) *SplayNode {
 	for p := root; p != nil; {
 		leftSize := uint32(0)
 		if p.Left != nil {
@@ -120,9 +179,9 @@ func Kth[T ordered.Ordered](root *node.SplayNode[T], k uint32) *node.SplayNode[T
 	return nil
 }
 
-func Insert[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
+func Insert(root *SplayNode, value int) *SplayNode {
 	if root == nil {
-		return node.New(value)
+		return NewNode(value)
 	} else {
 		superRoot := root.Parent
 
@@ -134,7 +193,7 @@ func Insert[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode
 				break
 			} else if value < p.Value {
 				if p.Left == nil {
-					p.SetChild(node.New(value), false)
+					p.SetChild(NewNode(value), false)
 					SplayRotate(p.Left, root)
 					break
 				} else {
@@ -142,7 +201,7 @@ func Insert[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode
 				}
 			} else {
 				if p.Right == nil {
-					p.SetChild(node.New(value), true)
+					p.SetChild(NewNode(value), true)
 					SplayRotate(p.Right, root)
 					break
 				} else {
@@ -155,7 +214,7 @@ func Insert[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode
 	}
 }
 
-func Delete[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
+func Delete(root *SplayNode, value int) *SplayNode {
 	if root == nil {
 		return nil
 	}
@@ -191,42 +250,42 @@ func Delete[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode
 	return superRoot.Right
 }
 
-func (thisTree *Splay[T]) Insert(value T) {
+func (thisTree *Splay) Insert(value int) {
 	thisTree.SetRoot(Insert(thisTree.Root(), value))
 }
 
-func (thisTree *Splay[T]) Delete(value T) {
+func (thisTree *Splay) Delete(value int) {
 	thisTree.SetRoot(Delete(thisTree.Root(), value))
 }
 
-func (thisTree *Splay[T]) Contains(value T) bool {
+func (thisTree *Splay) Contains(value int) bool {
 	return Find(thisTree.Root(), value) != nil
 }
 
-func (thisTree *Splay[T]) Kth(k uint32) (T, error) {
+func (thisTree *Splay) Kth(k uint32) (int, error) {
 	result := Kth(thisTree.Root(), k)
 	if result == nil {
-		return T(rune(0)), errors.ErrOutOfRange
+		return int(rune(0)), errors.New("k is out of range")
 	}
 	return result.Value, nil
 }
 
-func (thisTree *Splay[T]) Size() uint32 {
+func (thisTree *Splay) Size() uint32 {
 	if thisTree.Root() == nil {
 		return 0
 	}
 	return thisTree.Root().Size
 }
 
-func (thisTree *Splay[T]) Empty() bool {
+func (thisTree *Splay) Empty() bool {
 	return thisTree.Root() == nil
 }
 
-func (thisTree *Splay[T]) Clear() {
+func (thisTree *Splay) Clear() {
 	thisTree.SetRoot(nil)
 }
 
-func Rank[T ordered.Ordered](root *node.SplayNode[T], value T) uint32 {
+func Rank(root *SplayNode, value int) uint32 {
 	rank := uint32(0)
 	for root != nil {
 		if root.Value < value {
@@ -242,7 +301,7 @@ func Rank[T ordered.Ordered](root *node.SplayNode[T], value T) uint32 {
 	return rank + 1
 }
 
-func (thisTree *Splay[T]) Rank(value T) uint32 {
+func (thisTree *Splay) Rank(value int) uint32 {
 	// return Rank(thisTree.Root, value)
 	p := Find(thisTree.Root(), value)
 	if p == nil {
@@ -263,8 +322,8 @@ func (thisTree *Splay[T]) Rank(value T) uint32 {
 	return 1
 }
 
-func Prev[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
-	var result *node.SplayNode[T]
+func Prev(root *SplayNode, value int) *SplayNode {
+	var result *SplayNode
 	for p := root; p != nil; {
 		if value > p.Value {
 			result = p
@@ -276,16 +335,16 @@ func Prev[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T
 	return result
 }
 
-func (thisTree *Splay[T]) Prev(value T) (T, error) {
+func (thisTree *Splay) Prev(value int) (int, error) {
 	prev := Prev(thisTree.Root(), value)
 	if prev == nil {
-		return T(rune(0)), errors.ErrNoPrevValue
+		return int(rune(0)), errors.New("no prev value")
 	}
 	return prev.Value, nil
 }
 
-func Next[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
-	var result *node.SplayNode[T]
+func Next(root *SplayNode, value int) *SplayNode {
+	var result *SplayNode
 	for p := root; p != nil; {
 		if value < p.Value {
 			result = p
@@ -297,10 +356,117 @@ func Next[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T
 	return result
 }
 
-func (thisTree *Splay[T]) Next(value T) (T, error) {
+func (thisTree *Splay) Next(value int) (int, error) {
 	next := Next(thisTree.Root(), value)
 	if next == nil {
-		return T(rune(0)), errors.ErrNoNextValue
+		return int(rune(0)), errors.New("no next value")
 	}
 	return next.Value, nil
+}
+
+func Read(istream *bufio.Reader) (int, error) {
+	res, sign := int(0), 1
+	readed := false
+	c, err := istream.ReadByte()
+	for ; err == nil && (c < '0' || c > '9'); c, err = istream.ReadByte() {
+		if c == '-' {
+			sign = -1
+		}
+	}
+	for ; err == nil && c >= '0' && c <= '9'; c, err = istream.ReadByte() {
+		readed = true
+		res = res<<3 + res<<1 + int(c-'0')
+	}
+	if !readed {
+		return 0, err
+	}
+	return res * int(sign), err
+}
+
+func ReadWithPanic(gin *bufio.Reader) int {
+	value, err := Read(gin)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+func main() {
+	ans, last := 0, 0
+	tree := New()
+	gin := bufio.NewReader(os.Stdin)
+	n, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	m, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	for i := 0; i < n; i++ {
+		x, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		tree.Insert(x)
+	}
+	for i := 0; i < m; i++ {
+		opt, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value ^= last
+		switch opt {
+		case 1:
+			tree.Insert(value)
+		case 2:
+			tree.Delete(value)
+		case 3:
+			{
+				rank := tree.Rank(value)
+				ans ^= int(rank)
+				last = int(rank)
+			}
+		case 4:
+			{
+				kth, err := tree.Kth(uint32(value))
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				ans ^= kth
+				last = kth
+			}
+		case 5:
+			{
+				prev, err := tree.Prev(value)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				ans ^= prev
+				last = prev
+			}
+		case 6:
+			{
+				next, err := tree.Next(value)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				ans ^= next
+				last = next
+			}
+		}
+	}
+	fmt.Println(ans)
 }
