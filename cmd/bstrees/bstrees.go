@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bstrees/pkg/splay"
+	"bstrees/pkg/anderson"
 	"bstrees/pkg/trait/number"
 	"bstrees/pkg/util/console"
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 )
@@ -19,7 +18,7 @@ func ReadWithPanic[T number.Integer](gin *bufio.Reader) T {
 }
 
 func main() {
-	tree := splay.New[int]()
+	tree := anderson.New[int]()
 	gin := bufio.NewReader(os.Stdin)
 	n := ReadWithPanic[int](gin)
 	for i := 0; i < n; i++ {
@@ -33,9 +32,6 @@ func main() {
 		case 2:
 			tree.Delete(value)
 		case 3:
-			if !tree.Contains(value) {
-				panic(errors.New("Shit"))
-			}
 			fmt.Println(tree.Rank(value))
 		case 4:
 			{

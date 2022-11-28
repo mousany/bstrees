@@ -7,30 +7,26 @@ import (
 	"os"
 )
 
-type SplayNode struct {
-	Value  int
-	Left   *SplayNode
-	Right  *SplayNode
-	Parent *SplayNode
-	Size   uint32
-	Rec    uint32 // This field is Splay only
-	// Because Splay operation will scatter nodes with the same value
-	// While traditional BST search mechanics is too slow on Splay
+type AndersonNode struct {
+	Value int
+	Left  *AndersonNode
+	Right *AndersonNode
+	Size  uint32
+	Level uint32
 }
 
-func NewNode(value int) *SplayNode {
-	return &SplayNode{
-		Value:  value,
-		Left:   nil,
-		Right:  nil,
-		Parent: nil,
-		Size:   1,
-		Rec:    1,
+func NewNode(value int, level uint32) *AndersonNode {
+	return &AndersonNode{
+		Value: value,
+		Left:  nil,
+		Right: nil,
+		Size:  uint32(1),
+		Level: level,
 	}
 }
 
-func (root *SplayNode) Update() {
-	root.Size = root.Rec
+func (root *AndersonNode) Update() {
+	root.Size = uint32(1)
 	if root.Left != nil {
 		root.Size += root.Left.Size
 	}
@@ -39,253 +35,186 @@ func (root *SplayNode) Update() {
 	}
 }
 
-func (root *SplayNode) Leaf() bool {
+func (root *AndersonNode) Leaf() bool {
 	return root.Left == nil && root.Right == nil
 }
 
-func (root *SplayNode) Full() bool {
+func (root *AndersonNode) Full() bool {
 	return root.Left != nil && root.Right != nil
 }
 
-func (root *SplayNode) SetChild(child *SplayNode, direction bool) {
+func (root *AndersonNode) SetChild(child *AndersonNode, direction bool) {
 	if direction {
 		root.Right = child
 	} else {
 		root.Left = child
 	}
-	if child != nil {
-		child.Parent = root
-	}
 }
 
-func (root *SplayNode) Child(direction bool) *SplayNode {
+func (root *AndersonNode) Child(direction bool) *AndersonNode {
 	if direction {
 		return root.Right
 	}
 	return root.Left
 }
 
-type Splay struct {
-	superRoot *SplayNode
+type Anderson struct {
+	Root *AndersonNode
 }
 
-func (thisTree *Splay) Root() *SplayNode {
-	return thisTree.superRoot.Right
+func New() Anderson {
+	return Anderson{Root: nil}
 }
 
-func (thisTree *Splay) SetRoot(root *SplayNode) {
-	thisTree.superRoot.SetChild(root, true)
-}
-
-func New() *Splay {
-	return &Splay{
-		superRoot: NewNode(int(rune(0))),
-	}
-}
-
-func LeftRotate(root *SplayNode) *SplayNode {
+func LeftRotate(root *AndersonNode) *AndersonNode {
 	right := root.Right
-	root.SetChild(right.Left, true)
-	right.SetChild(root, false)
+	root.Right = right.Left
+	right.Left = root
 	root.Update()
 	right.Update()
 	return right
 }
 
-func RightRotate(root *SplayNode) *SplayNode {
+func RightRotate(root *AndersonNode) *AndersonNode {
 	left := root.Left
-	root.SetChild(left.Right, false)
-	left.SetChild(root, true)
+	root.Left = left.Right
+	left.Right = root
 	root.Update()
 	left.Update()
 	return left
 }
 
-// Rotate root to its parent
-// After this operation, parent will be the child of root
-func RotateToParent(root *SplayNode) {
-	grandParent := root.Parent.Parent
-	if root == root.Parent.Left {
-		// root is left child
-		root = RightRotate(root.Parent)
-	} else {
-		// root is right child
-		root = LeftRotate(root.Parent)
+func Skew(root *AndersonNode) *AndersonNode {
+	// Print(root)
+	if root.Left == nil || root.Left.Level != root.Level {
+		return root
 	}
-	if grandParent != nil {
-		if grandParent.Left == root.Parent {
-			grandParent.SetChild(root, false)
-			grandParent.Update()
-		} else {
-			grandParent.SetChild(root, true)
-			grandParent.Update()
-		}
-	}
+	return RightRotate(root)
 }
 
-// Rotate root to target
-// After this operation, target will be the child of root
-func SplayRotate(root, target *SplayNode) {
-	targetParent := target.Parent
-	for root.Parent != targetParent {
-		parent := root.Parent
-		grandParent := parent.Parent
-		direction := root == parent.Left
-		grandDirection := parent == grandParent.Left
-		if parent == target {
-			// root is the child of target
-			RotateToParent(root)
-		} else if direction == grandDirection {
-			// zig-zig
-			RotateToParent(parent)
-			RotateToParent(root)
-		} else {
-			// zig-zag
-			RotateToParent(root)
-			RotateToParent(root)
-		}
+func Split(root *AndersonNode) *AndersonNode {
+	if root.Right == nil || root.Right.Right == nil || root.Right.Right.Level != root.Level {
+		return root
 	}
+	root = LeftRotate(root)
+	root.Level += 1
+	return root
 }
 
-func Find(root *SplayNode, value int) *SplayNode {
-	for p := root; p != nil; {
-		if p.Value == value {
-			return p
-		} else if value < p.Value {
-			p = p.Left
-		} else {
-			p = p.Right
-		}
-	}
-	return nil
-}
-
-func Kth(root *SplayNode, k uint32) *SplayNode {
-	for p := root; p != nil; {
-		leftSize := uint32(0)
-		if p.Left != nil {
-			leftSize = p.Left.Size
-		}
-		if leftSize < k && leftSize+p.Rec >= k {
-			// SplayRotate(p, root)
-			return p
-		} else if leftSize+p.Rec < k {
-			k -= leftSize + p.Rec
-			p = p.Right
-		} else {
-			p = p.Left
-		}
-	}
-	return nil
-}
-
-func Insert(root *SplayNode, value int) *SplayNode {
+func Insert(root *AndersonNode, value int) *AndersonNode {
 	if root == nil {
-		return NewNode(value)
-	} else {
-		superRoot := root.Parent
-
-		for p := root; p != nil; {
-			p.Size += 1
-			if value == p.Value {
-				p.Rec += 1
-				SplayRotate(p, root)
-				break
-			} else if value < p.Value {
-				if p.Left == nil {
-					p.SetChild(NewNode(value), false)
-					SplayRotate(p.Left, root)
-					break
-				} else {
-					p = p.Left
-				}
-			} else {
-				if p.Right == nil {
-					p.SetChild(NewNode(value), true)
-					SplayRotate(p.Right, root)
-					break
-				} else {
-					p = p.Right
-				}
-			}
-		}
-
-		return superRoot.Right
+		return NewNode(value, 1)
 	}
+	if value < root.Value {
+		root.Left = Insert(root.Left, value)
+	} else {
+		root.Right = Insert(root.Right, value)
+	}
+	root.Update()
+	root = Skew(root)
+	root = Split(root)
+	return root
 }
 
-func Delete(root *SplayNode, value int) *SplayNode {
+func Delete(root *AndersonNode, value int) *AndersonNode {
 	if root == nil {
 		return nil
 	}
-	superRoot := root.Parent
-	p := Find(root, value)
-	if p == nil {
-		return root
-	}
-	SplayRotate(p, root)
-	if p.Rec > 1 {
-		p.Rec -= 1
-		p.Size -= 1
+	if value < root.Value {
+		root.Left = Delete(root.Left, value)
+	} else if value > root.Value {
+		root.Right = Delete(root.Right, value)
 	} else {
-		if p.Left == nil && p.Right == nil {
-			superRoot.SetChild(nil, true)
-		} else if p.Left == nil {
-			superRoot.SetChild(p.Right, true)
-		} else if p.Right == nil {
-			superRoot.SetChild(p.Left, true)
+		if root.Left == nil {
+			return root.Right
+		} else if root.Right == nil {
+			return root.Left
 		} else {
-			maxLeft := p.Left
-			for maxLeft.Right != nil {
-				maxLeft.Size -= 1
-				maxLeft = maxLeft.Right
-			}
-			SplayRotate(maxLeft, superRoot.Right)
-			maxLeft.SetChild(p.Right, true)
-			superRoot.SetChild(maxLeft, true)
-			superRoot.Right.Update()
+			minNode := Kth(root.Right, 1)
+			root.Value = minNode.Value
+			root.Right = Delete(root.Right, minNode.Value)
 		}
 	}
-
-	return superRoot.Right
+	root.Update()
+	if (root.Left != nil && root.Left.Level < root.Level-1) ||
+		(root.Right != nil && root.Right.Level < root.Level-1) {
+		root.Level -= 1
+		if root.Right != nil && root.Right.Level > root.Level {
+			root.Right.Level = root.Level
+		}
+		root = Skew(root)
+		root = Split(root)
+	}
+	return root
 }
 
-func (thisTree *Splay) Insert(value int) {
-	thisTree.SetRoot(Insert(thisTree.Root(), value))
+func Kth(root *AndersonNode, k uint32) *AndersonNode {
+	for root != nil {
+		leftSize := uint32(0)
+		if root.Left != nil {
+			leftSize = root.Left.Size
+		}
+		if leftSize+1 == k {
+			return root
+		} else if leftSize+1 < k {
+			k -= leftSize + 1
+			root = root.Right
+		} else {
+			root = root.Left
+		}
+	}
+	return nil
 }
 
-func (thisTree *Splay) Delete(value int) {
-	thisTree.SetRoot(Delete(thisTree.Root(), value))
+func (tree *Anderson) Insert(value int) {
+	tree.Root = Insert(tree.Root, value)
 }
 
-func (thisTree *Splay) Contains(value int) bool {
-	return Find(thisTree.Root(), value) != nil
+func (tree *Anderson) Delete(value int) {
+	tree.Root = Delete(tree.Root, value)
 }
 
-func (thisTree *Splay) Kth(k uint32) (int, error) {
-	result := Kth(thisTree.Root(), k)
-	if result == nil {
+func (tree *Anderson) Kth(k uint32) (int, error) {
+	root := Kth(tree.Root, k)
+	if root == nil {
 		return int(rune(0)), errors.New("k is out of range")
 	}
-	return result.Value, nil
+	return root.Value, nil
 }
 
-func (thisTree *Splay) Size() uint32 {
-	if thisTree.Root() == nil {
+func (tree *Anderson) Size() uint32 {
+	if tree.Root == nil {
 		return 0
 	}
-	return thisTree.Root().Size
+	return tree.Root.Size
 }
 
-func (thisTree *Splay) Empty() bool {
-	return thisTree.Root() == nil
+func (tree *Anderson) Empty() bool {
+	return tree.Root == nil
 }
 
-func (thisTree *Splay) Clear() {
-	thisTree.SetRoot(nil)
+func (tree *Anderson) Clear() {
+	tree.Root = nil
 }
 
-func Rank(root *SplayNode, value int) uint32 {
+func Find(root *AndersonNode, value int) *AndersonNode {
+	for root != nil {
+		if value < root.Value {
+			root = root.Left
+		} else if root.Value < value {
+			root = root.Right
+		} else {
+			return root
+		}
+	}
+	return nil
+}
+
+func (tree *Anderson) Contains(value int) bool {
+	return Find(tree.Root, value) != nil
+}
+
+func Rank(root *AndersonNode, value int) uint32 {
 	rank := uint32(0)
 	for root != nil {
 		if root.Value < value {
@@ -301,59 +230,50 @@ func Rank(root *SplayNode, value int) uint32 {
 	return rank + 1
 }
 
-func (thisTree *Splay) Rank(value int) uint32 {
-	// return Rank(thisTree.Root, value)
-	p := Find(thisTree.Root(), value)
-	if p == nil {
-		return 0
-	}
-	SplayRotate(p, thisTree.Root())
-	if p.Left != nil {
-		return p.Left.Size + 1
-	}
-	return 1
+func (thisTree *Anderson) Rank(value int) uint32 {
+	return Rank(thisTree.Root, value)
 }
 
-func Prev(root *SplayNode, value int) *SplayNode {
-	var result *SplayNode
-	for p := root; p != nil; {
-		if value > p.Value {
-			result = p
-			p = p.Right
+func Prev(root *AndersonNode, value int) *AndersonNode {
+	var prev *AndersonNode = nil
+	for root != nil {
+		if root.Value < value {
+			prev = root
+			root = root.Right
 		} else {
-			p = p.Left
+			root = root.Left
 		}
 	}
-	return result
+	return prev
 }
 
-func (thisTree *Splay) Prev(value int) (int, error) {
-	prev := Prev(thisTree.Root(), value)
+func (thisTree *Anderson) Prev(value int) (int, error) {
+	prev := Prev(thisTree.Root, value)
 	if prev == nil {
-		return int(rune(0)), errors.New("no prev value")
+		return int(rune(0)), errors.New("no prev")
 	}
 	return prev.Value, nil
 }
 
-func Next(root *SplayNode, value int) *SplayNode {
-	var result *SplayNode
-	for p := root; p != nil; {
-		if value < p.Value {
-			result = p
-			p = p.Left
+func Next(root *AndersonNode, value int) *AndersonNode {
+	var next *AndersonNode = nil
+	for root != nil {
+		if root.Value > value {
+			next = root
+			root = root.Left
 		} else {
-			p = p.Right
+			root = root.Right
 		}
 	}
-	return result
+	return next
 }
 
-func (thisTree *Splay) Next(value int) (int, error) {
-	next := Next(thisTree.Root(), value)
-	if next == nil {
-		return int(rune(0)), errors.New("no next value")
+func (thisTree *Anderson) Next(value int) (int, error) {
+	prev := Next(thisTree.Root, value)
+	if prev == nil {
+		return int(rune(0)), errors.New("no next")
 	}
-	return next.Value, nil
+	return prev.Value, nil
 }
 
 func Read(istream *bufio.Reader) (int, error) {
