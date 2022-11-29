@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bstrees/pkg/anderson"
+	"bstrees/pkg/scapegoat"
 	"bstrees/pkg/trait/number"
 	"bstrees/pkg/util/console"
 	"bufio"
@@ -18,7 +18,7 @@ func ReadWithPanic[T number.Integer](gin *bufio.Reader) T {
 }
 
 func main() {
-	tree := anderson.New[int]()
+	tree := scapegoat.New[int](0.7)
 	gin := bufio.NewReader(os.Stdin)
 	n := ReadWithPanic[int](gin)
 	for i := 0; i < n; i++ {
@@ -63,9 +63,6 @@ func main() {
 		}
 		// if opt == 1 || opt == 2 {
 		// 	tree.Print()
-		// 	if err := tree.PropertyCheck(); err != nil {
-		// 		panic(err)
-		// 	}
 		// }
 	}
 }
