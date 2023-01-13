@@ -1,5 +1,8 @@
 package splay
 
+// ! Failed to pass test case 10, 17, 18, 19, 20, 21, 22 in P6136
+// ! See https://github.com/yanglinshu/bstrees/blob/draft/pkg/splay for the old version
+
 import (
 	"bstrees/internal/node"
 	"bstrees/internal/tree"
