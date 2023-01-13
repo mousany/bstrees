@@ -2,323 +2,430 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 )
 
-type NodeState bool
-
-const (
-	Inactive NodeState = false
-	Active   NodeState = true
-)
-
-type ScapeGoatNode struct {
-	Value  int
-	Left   *ScapeGoatNode
-	Right  *ScapeGoatNode
-	State  NodeState
-	Size   uint32 // Number of active nodes in the subtree
-	Weight uint32 // Number of nodes in the subtree
-}
-
-func NewNode(value int) *ScapeGoatNode {
-	return &ScapeGoatNode{
-		Value:  value,
-		Left:   nil,
-		Right:  nil,
-		State:  Active,
-		Size:   1,
-		Weight: 1,
-	}
-}
-
-func (root *ScapeGoatNode) Leaf() bool {
-	return root.Left == nil && root.Right == nil
-}
-
-func (root *ScapeGoatNode) Full() bool {
-	return root.Left != nil && root.Right != nil
-}
-
-func (root *ScapeGoatNode) Inactive() bool {
-	return root.State == Inactive
-}
-
-func (root *ScapeGoatNode) Active() bool {
-	return root.State == Active
-}
-
-func (root *ScapeGoatNode) Update() {
-	if root.Active() {
-		root.Size = 1
-	} else {
-		root.Size = 0
-	}
-	root.Weight = 1
-	if root.Left != nil {
-		root.Size += root.Left.Size
-		root.Weight += root.Left.Weight
-	}
-	if root.Right != nil {
-		root.Size += root.Right.Size
-		root.Weight += root.Right.Weight
-	}
-}
-
-func (root *ScapeGoatNode) Deactivate() {
-	root.State = Inactive
-	root.Update()
-}
-
-type ScapeGoat struct {
-	Root  *ScapeGoatNode
-	Alpha float64
-}
-
-func New(alpha float64) *ScapeGoat {
-	return &ScapeGoat{
-		Root:  nil,
-		Alpha: alpha,
-	}
-}
-
-func ToSlice(root *ScapeGoatNode) []*ScapeGoatNode {
-	if root == nil {
-		return []*ScapeGoatNode{}
-	}
-	if root.Active() {
-		defer func() {
-			root.Left = nil
-			root.Right = nil
-			root.Size = 1
-			root.Weight = 1
-		}()
-		return append(append(ToSlice(root.Left), root), ToSlice(root.Right)...)
-	} else {
-		return append(ToSlice(root.Left), ToSlice(root.Right)...)
-	}
-}
-
-func FromSlice(slice []*ScapeGoatNode) *ScapeGoatNode {
-	if len(slice) == 0 {
-		return nil
-	}
-	mid := len(slice) / 2
-	root := slice[mid]
-	root.Left = FromSlice(slice[:mid])
-	root.Right = FromSlice(slice[mid+1:])
-	root.Update()
-	return root
-}
-
-func (thisTree *ScapeGoat) ToSlice() []int {
-	slice := ToSlice(thisTree.Root)
-	result := make([]int, len(slice))
-	for i, root := range slice {
-		result[i] = root.Value
-	}
-	return result
-}
-
-func (thisTree *ScapeGoat) FromSlice(slice []int) {
-	nodes := make([]*ScapeGoatNode, len(slice))
-	for i, value := range slice {
-		nodes[i] = NewNode(value)
-	}
-	thisTree.Root = FromSlice(nodes)
-}
-
-func Reconstruct(root *ScapeGoatNode) *ScapeGoatNode {
-	return FromSlice(ToSlice(root))
-}
-
-func Imbalance(root *ScapeGoatNode, alpha float64) bool {
-	if root == nil {
-		return false
-	}
-	if root.Left != nil && root.Left.Weight > uint32(alpha*float64(root.Weight)) {
-		return true
-	}
-	if root.Right != nil && root.Right.Weight > uint32(alpha*float64(root.Weight)) {
-		return true
-	}
-	return false
-}
-
-func Insert(root *ScapeGoatNode, value int, alpha float64) *ScapeGoatNode {
-	if root == nil {
-		return NewNode(value)
-	}
-	if value < root.Value {
-		root.Left = Insert(root.Left, value, alpha)
-	} else {
-		root.Right = Insert(root.Right, value, alpha)
-	}
-	root.Update()
-	if Imbalance(root, alpha) {
-		return Reconstruct(root)
-	}
-	return root
-}
-
-func (thisTree *ScapeGoat) Insert(value int) {
-	thisTree.Root = Insert(thisTree.Root, value, thisTree.Alpha)
-}
-
-func Rank(root *ScapeGoatNode, value int) uint32 {
-	result := uint32(0)
-	for root != nil {
-		if root.Value >= value {
-			root = root.Left
-		} else {
-			if root.Left != nil {
-				result += root.Left.Size
-			}
-			if root.Active() {
-				result += 1
-			}
-			root = root.Right
+func Min(args ...int) int {
+	min := args[0]
+	for _, arg := range args {
+		if arg < min {
+			min = arg
 		}
 	}
-	return result + 1
+	return min
 }
 
-func (thisTree *ScapeGoat) Rank(value int) uint32 {
-	return Rank(thisTree.Root, value)
-}
-
-func Kth(root *ScapeGoatNode, k uint32) *ScapeGoatNode {
-	var result *ScapeGoatNode = nil
-	for root != nil {
-		leftSize := uint32(0)
-		if root.Left != nil {
-			leftSize = root.Left.Size
-		}
-		if root.Active() && leftSize+1 == k {
-			result = root
-			break
-		} else if leftSize >= k {
-			root = root.Left
-		} else {
-			k -= leftSize
-			if root.Active() {
-				k -= 1
-			}
-			root = root.Right
+func Max(args ...int) int {
+	max := args[0]
+	for _, arg := range args {
+		if arg > max {
+			max = arg
 		}
 	}
-	return result
+	return max
 }
 
-func (thisTree *ScapeGoat) Kth(k uint32) (int, error) {
-	result := Kth(thisTree.Root, k)
-	if result == nil {
-		return int(rune(0)), errors.New("k is out of range")
+func Abs(value int) int {
+	if value < 0 {
+		return -value
 	}
-	return result.Value, nil
+	return value
 }
 
-func Find(root *ScapeGoatNode, value int) *ScapeGoatNode {
-	if root == nil {
-		return nil
+type Valued interface {
+	Value() int
+	SetValue(int)
+}
+
+type Sized interface {
+	Size() uint
+	SetSize(uint)
+}
+
+type Binary interface {
+	Left() Noded
+	SetLeft(Noded)
+	Right() Noded
+	SetRight(Noded)
+	Child(bool) Noded
+	SetChild(bool, Noded)
+}
+
+type Noded interface {
+	Valued
+	Sized
+	Binary
+	Update()
+	IsNil() bool
+}
+
+type BaseTreeNode struct {
+	value int
+	size  uint
+	left  Noded
+	right Noded
+}
+
+func newBaseTreeNode(value int) *BaseTreeNode {
+	return &BaseTreeNode{value, 1, nil, nil}
+}
+
+func (n *BaseTreeNode) Value() int {
+	return n.value
+}
+
+func (n *BaseTreeNode) SetValue(value int) {
+	n.value = value
+}
+
+func (n *BaseTreeNode) Size() uint {
+	return n.size
+}
+
+func (n *BaseTreeNode) SetSize(size uint) {
+	n.size = size
+}
+
+func (n *BaseTreeNode) Left() Noded {
+	return n.left
+}
+
+func (n *BaseTreeNode) SetLeft(left Noded) {
+	n.left = left
+}
+
+func (n *BaseTreeNode) Right() Noded {
+	return n.right
+}
+
+func (n *BaseTreeNode) SetRight(right Noded) {
+	n.right = right
+}
+
+func (n *BaseTreeNode) Child(right bool) Noded {
+	if right {
+		return n.right
 	}
-	if root.Value == value {
-		if root.Active() {
+	return n.left
+}
+
+func (n *BaseTreeNode) SetChild(right bool, child Noded) {
+	if right {
+		n.right = child
+	} else {
+		n.left = child
+	}
+}
+
+func (n *BaseTreeNode) IsNil() bool {
+	return n == nil
+}
+
+func (n *BaseTreeNode) Update() {
+	n.size = 1
+	if !n.left.IsNil() {
+		n.size += n.left.Size()
+	}
+	if !n.right.IsNil() {
+		n.size += n.right.Size()
+	}
+}
+
+type Rooted interface {
+	Root() Noded
+	SetRoot(Noded)
+	Size() uint
+	Empty() bool
+	Clear()
+}
+
+type Insertable interface {
+	Insert(int)
+}
+
+type Deleteable interface {
+	Delete(int)
+}
+
+type Searchable interface {
+	Contains(int) bool
+	Kth(uint) (int, error)
+	Rank(int) uint
+	Prev(int) (int, error)
+	Next(int) (int, error)
+}
+
+type Treed interface {
+	Rooted
+	Insertable
+	Deleteable
+	Searchable
+}
+
+type BaseTree struct {
+	root Noded
+}
+
+func (tree *BaseTree) Root() Noded {
+	return tree.root
+}
+
+func (tree *BaseTree) SetRoot(root Noded) {
+	tree.root = root
+}
+
+func (tree *BaseTree) Size() uint {
+	return tree.root.Size()
+}
+
+func (tree *BaseTree) Empty() bool {
+	return tree.root == nil
+}
+
+func (tree *BaseTree) Clear() {
+	tree.root = nil
+}
+
+func Find(root Noded, value int) Noded {
+	for !root.IsNil() {
+		if root.Value() == value {
 			return root
+		} else if root.Value() < value {
+			root = root.Right()
 		} else {
-			if result := Find(root.Left, value); result != nil {
-				return result
-			} else if result := Find(root.Right, value); result != nil {
-				return result
-			}
-			return nil
-		}
-	} else if root.Value > value {
-		return Find(root.Left, value)
-	} else {
-		return Find(root.Right, value)
-	}
-}
-
-func (thisTree *ScapeGoat) Find(value int) bool {
-	return Find(thisTree.Root, value) != nil
-}
-
-func Delete(root *ScapeGoatNode, value int) *ScapeGoatNode {
-	if root == nil {
-		return nil
-	}
-	if root.Value == value {
-		if root.Active() {
-			root.Deactivate()
-			return root
-		} else {
-			if result := Delete(root.Left, value); result != nil {
-				root.Size -= 1
-				return result
-			} else if result := Delete(root.Right, value); result != nil {
-				root.Size -= 1
-				return result
-			}
-			return nil
-		}
-	} else if root.Value > value {
-		if result := Delete(root.Left, value); result != nil {
-			root.Size -= 1
-			return result
-		}
-	} else {
-		if result := Delete(root.Right, value); result != nil {
-			root.Size -= 1
-			return result
+			root = root.Left()
 		}
 	}
 	return nil
 }
 
-func (thisTree *ScapeGoat) Delete(value int) {
-	target := Find(thisTree.Root, value)
-	if target != nil {
-		Delete(thisTree.Root, value)
+func (tree *BaseTree) Contains(value int) bool {
+	return !Find(tree.root, value).IsNil()
+}
+
+func Kth(root Noded, k uint) Noded {
+	for !root.IsNil() {
+		leftSize := uint(0)
+		if !root.Left().IsNil() {
+			leftSize = root.Left().Size()
+		}
+		if leftSize+1 == k {
+			return root
+		} else if leftSize+1 < k {
+			k -= leftSize + 1
+			root = root.Right()
+		} else {
+			root = root.Left()
+		}
 	}
+	return nil
 }
 
-func (thisTree *ScapeGoat) Clear() {
-	thisTree.Root = nil
+func (tree *BaseTree) Kth(k uint) (int, error) {
+	result := Kth(tree.root, k)
+	if result.IsNil() {
+		return int(rune(0)), errors.New("k is out of range")
+	}
+	return result.Value(), nil
 }
 
-func (thisTree *ScapeGoat) Size() uint32 {
-	return thisTree.Root.Size
+func Rank(root Noded, value int) uint {
+	rank := uint(0)
+	for !root.IsNil() {
+		if root.Value() < value {
+			rank += 1
+			if !root.Left().IsNil() {
+				rank += root.Left().Size()
+			}
+			root = root.Right()
+		} else {
+			root = root.Left()
+		}
+	}
+	return rank + 1
 }
 
-func (thisTree *ScapeGoat) Empty() bool {
-	return thisTree.Root == nil
+func (tree *BaseTree) Rank(value int) uint {
+	return Rank(tree.root, value)
 }
 
-func Prev(root *ScapeGoatNode, value int) *ScapeGoatNode {
-	return Kth(root, Rank(root, value)-1)
+func Prev(root Noded, value int) Noded {
+	var result Noded = nil
+	for !root.IsNil() {
+		if root.Value() < value {
+			result = root
+			root = root.Right()
+		} else {
+			root = root.Left()
+		}
+	}
+	return result
 }
 
-func (thisTree *ScapeGoat) Prev(value int) (int, error) {
-	prev := Prev(thisTree.Root, value)
-	if prev == nil {
+func (tree *BaseTree) Prev(value int) (int, error) {
+	prev := Prev(tree.root, value)
+	if prev.IsNil() {
 		return int(rune(0)), errors.New("no previous value")
 	}
-	return prev.Value, nil
+	return prev.Value(), nil
 }
 
-func Next(root *ScapeGoatNode, value int) *ScapeGoatNode {
-	return Kth(root, Rank(root, value+1))
+func Next(root Noded, value int) Noded {
+	var result Noded = nil
+	for !root.IsNil() {
+		if root.Value() > value {
+			result = root
+			root = root.Left()
+		} else {
+			root = root.Right()
+		}
+	}
+	return result
 }
 
-func (thisTree *ScapeGoat) Next(value int) (int, error) {
-	next := Next(thisTree.Root, value)
-	if next == nil {
+func (tree *BaseTree) Next(value int) (int, error) {
+	next := Next(tree.root, value)
+	if next.IsNil() {
 		return int(rune(0)), errors.New("no next value")
 	}
-	return next.Value, nil
+	return next.Value(), nil
+}
+
+func String(root Noded) string {
+	if root.IsNil() {
+		return "null"
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("[%v, ", root.Value()))
+	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size()))
+	buffer.WriteString(fmt.Sprintf("%v, ", String(root.Left())))
+	buffer.WriteString(fmt.Sprintf("%v]", String(root.Right())))
+	return buffer.String()
+}
+
+func (tree *BaseTree) String() string {
+	return String(tree.root)
+}
+
+type avlTreeNode struct {
+	*BaseTreeNode     // Embedded node
+	height        int // Height of the node
+}
+
+func newAvlTreeNode(value int) *avlTreeNode {
+	n := &avlTreeNode{newBaseTreeNode(value), 0}
+	n.SetLeft((*avlTreeNode)(nil))
+	n.SetRight((*avlTreeNode)(nil))
+	return n
+}
+
+func (n *avlTreeNode) Height() int {
+	if n == nil {
+		return -1
+	}
+	return n.height
+}
+
+func (n *avlTreeNode) SetHeight(height int) {
+	n.height = height
+}
+
+func (n *avlTreeNode) IsNil() bool {
+	return n == nil
+}
+
+func (n *avlTreeNode) Update() {
+	n.BaseTreeNode.Update()
+	n.height = 0
+	if !n.Left().IsNil() {
+		n.height = Max(n.height, n.Left().(*avlTreeNode).Height()+1)
+	}
+	if !n.Right().IsNil() {
+		n.height = Max(n.height, n.Right().(*avlTreeNode).Height()+1)
+	}
+}
+
+type AVLTree struct {
+	BaseTree
+}
+
+func New() *AVLTree {
+	tree := &AVLTree{BaseTree{}}
+	tree.SetRoot((*avlTreeNode)(nil))
+	return tree
+}
+
+func Insert(root *avlTreeNode, value int) Noded {
+	if root == nil {
+		return newAvlTreeNode(value)
+	}
+	if value < root.Value() {
+		root.SetLeft(Insert(root.Left().(*avlTreeNode), value))
+	} else {
+		root.SetRight(Insert(root.Right().(*avlTreeNode), value))
+	}
+	root.Update()
+	return Balance(root)
+}
+
+func (tree *AVLTree) Insert(value int) {
+	tree.SetRoot(Insert(tree.Root().(*avlTreeNode), value))
+}
+
+func Delete(root *avlTreeNode, value int) Noded {
+	if root == nil {
+		return nil
+	}
+	if value < root.Value() {
+		root.SetLeft(Delete(root.Left().(*avlTreeNode), value))
+	} else if root.Value() < value {
+		root.SetRight(Delete(root.Right().(*avlTreeNode), value))
+	} else {
+		if root.Left().IsNil() {
+			return root.Right().(*avlTreeNode)
+		} else if root.Right().IsNil() {
+			return root.Left().(*avlTreeNode)
+		} else {
+			minNode := Kth(root.Right(), 1).(*avlTreeNode) // root.Right is not nil, so this will not fail
+			root.SetValue(minNode.Value())
+			root.SetRight(Delete(root.Right().(*avlTreeNode), minNode.Value()))
+		}
+	}
+	root.Update()
+	return Balance(root)
+}
+
+func (tree *AVLTree) Delete(value int) {
+	tree.SetRoot(Delete(tree.Root().(*avlTreeNode), value))
+}
+
+func SingleRotate(direction bool, root *avlTreeNode) Noded {
+	save := root.Child(!direction)
+	root.SetChild(!direction, save.Child(direction))
+	save.SetChild(direction, root)
+	root.Update()
+	save.Update()
+	return save
+}
+
+func Balance(root *avlTreeNode) Noded {
+	leftHeight := root.Left().(*avlTreeNode).Height()
+	rightHeight := root.Right().(*avlTreeNode).Height()
+	if Abs(leftHeight-rightHeight) > 1 {
+		grandFatherDirection := leftHeight < rightHeight+1
+		father := root.Child(grandFatherDirection).(*avlTreeNode)
+		fatherLeftHeight := father.Left().(*avlTreeNode).Height()
+		fatherRightHeight := father.Right().(*avlTreeNode).Height()
+		fatherDirection := fatherLeftHeight < fatherRightHeight+1
+		if grandFatherDirection != fatherDirection {
+			root.SetChild(grandFatherDirection, SingleRotate(!fatherDirection, father))
+		}
+		return SingleRotate(!grandFatherDirection, root)
+	}
+	return root
 }
 
 func Read(istream *bufio.Reader) (int, error) {
@@ -349,46 +456,81 @@ func ReadWithPanic(gin *bufio.Reader) int {
 }
 
 func main() {
-	tree := New(0.7)
+	ans, last := 0, 0
+	tree := New()
 	gin := bufio.NewReader(os.Stdin)
-	n := ReadWithPanic(gin)
+	n, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	m, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	for i := 0; i < n; i++ {
-		opt := ReadWithPanic(gin)
-		value := ReadWithPanic(gin)
+		x, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		tree.Insert(x)
+	}
+	for i := 0; i < m; i++ {
+		opt, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value ^= last
 		switch opt {
 		case 1:
 			tree.Insert(value)
 		case 2:
 			tree.Delete(value)
 		case 3:
-			fmt.Println(tree.Rank(value))
+			{
+				rank := tree.Rank(value)
+				ans ^= int(rank)
+				last = int(rank)
+			}
 		case 4:
 			{
-				kth, err := tree.Kth(uint32(value))
+				kth, err := tree.Kth(uint(value))
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= kth
+				last = kth
 			}
 		case 5:
 			{
-				kth, err := tree.Prev(value)
+				prev, err := tree.Prev(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= prev
+				last = prev
 			}
 		case 6:
 			{
-				kth, err := tree.Next(value)
+				next, err := tree.Next(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= next
+				last = next
 			}
 		}
 	}
+	fmt.Println(ans)
 }

@@ -1,11 +1,11 @@
 package console
 
 import (
-	"bstrees/pkg/trait/number"
+	"bstrees/internal/node"
 	"bufio"
 )
 
-func Read[T number.Integer](istream *bufio.Reader) (T, error) {
+func Read[T node.Integer](istream *bufio.Reader) (T, error) {
 	res, sign := T(0), 1
 	readed := false
 	c, err := istream.ReadByte()

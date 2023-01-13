@@ -1,12 +1,13 @@
 package errors
 
 import (
-	defaultErrors "errors"
+	errorsPkg "errors"
 )
 
 var (
-	ErrOutOfRange           = defaultErrors.New("index out of range")
-	ErrNoPrevValue          = defaultErrors.New("no previous value")
-	ErrNoNextValue          = defaultErrors.New("no next value")
-	ErrViolatedRedBlackTree = defaultErrors.New("violated red-black tree")
+	ErrOutOfRange  = errorsPkg.New("index is out of range")
+	ErrNoPrevValue = errorsPkg.New("previous value does not exist")
+	ErrNoNextValue = errorsPkg.New("next value does not exist")
+
+	ErrViolatedRedBlackTree = errorsPkg.New("red-black tree property is violated")
 )
