@@ -1,4 +1,4 @@
-package rbtree
+package rb
 
 import (
 	"bstrees/internal/node"
@@ -16,10 +16,10 @@ func New[T node.Ordered]() *RBTree[T] {
 }
 
 // https://archive.ph/EJTsz, Eternally Confuzzled's Blog
-func Insert[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
+func insert[T node.Ordered](root *rbTreeNode[T], value T) node.Noded[T] {
 	if root == nil {
 		root = newRBTreeNode(value)
-		root.SetColor(Black)
+		root.SetColor(black)
 		return root
 	}
 	superRoot := newRBTreeNode(T(rune(0))) // Head in Eternally Confuzzled's paper
@@ -45,9 +45,9 @@ func Insert[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 			child.SetSize(child.Size() + 1)
 			if child.Left().(*rbTreeNode[T]).IsRed() && child.Right().(*rbTreeNode[T]).IsRed() {
 				// Color flip
-				child.SetColor(Red)
-				child.Left().(*rbTreeNode[T]).SetColor(Black)
-				child.Right().(*rbTreeNode[T]).SetColor(Black)
+				child.SetColor(red)
+				child.Left().(*rbTreeNode[T]).SetColor(black)
+				child.Right().(*rbTreeNode[T]).SetColor(black)
 			}
 		}
 
@@ -55,11 +55,11 @@ func Insert[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 			// Fix red violation
 			direction2 := greatGrandParent.Right().(*rbTreeNode[T]) == grandParent
 			if child == parent.Child(lastDirection).(*rbTreeNode[T]) {
-				greatGrandParent.SetChild(direction2, SingleRotate(grandParent, !lastDirection))
+				greatGrandParent.SetChild(direction2, singleRotate(!lastDirection, grandParent))
 				// When performing a single rotation to grandparent, child is not affected.
 				// So when grandparent(old) and parent(old) is updated, there are all +1ed.
 			} else {
-				greatGrandParent.SetChild(direction2, DoubleRotate(grandParent, !lastDirection))
+				greatGrandParent.SetChild(direction2, doubleRotate(!lastDirection, grandParent))
 				if !ok {
 					// When performing a double rotation to grandparent, child is affected.
 					// So we need to update child(now grandParent)'s size. But there is no need we insert is done.
@@ -82,15 +82,15 @@ func Insert[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 	// Update root
 	root = superRoot.Right().(*rbTreeNode[T])
 
-	root.SetColor(Black)
+	root.SetColor(black)
 	return root
 }
 
 func (tree *RBTree[T]) Insert(value T) {
-	tree.SetRoot(Insert(tree.Root().(*rbTreeNode[T]), value))
+	tree.SetRoot(insert(tree.Root().(*rbTreeNode[T]), value))
 }
 
-func Delete[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
+func delete[T node.Ordered](root *rbTreeNode[T], value T) node.Noded[T] {
 	if root == nil || tree.Find(node.Noded[T](root), value).IsNil() {
 		return root
 	}
@@ -123,7 +123,7 @@ func Delete[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 		// Push the red node down
 		if !child.IsRed() && !child.Child(direction).(*rbTreeNode[T]).IsRed() {
 			if child.Child(!direction).(*rbTreeNode[T]).IsRed() {
-				parent.SetChild(lastDirection, SingleRotate(child, direction))
+				parent.SetChild(lastDirection, singleRotate(direction, child))
 				parent = parent.Child(lastDirection).(*rbTreeNode[T])
 
 				// When performing a single rotation to child, child is affected.
@@ -135,15 +135,15 @@ func Delete[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 				if sibling != nil {
 					if !sibling.Child(!lastDirection).(*rbTreeNode[T]).IsRed() && !sibling.Child(lastDirection).(*rbTreeNode[T]).IsRed() {
 						// Color flip
-						parent.SetColor(Black)
-						sibling.SetColor(Red)
-						child.SetColor(Red)
+						parent.SetColor(black)
+						sibling.SetColor(red)
+						child.SetColor(red)
 					} else {
 						direction2 := grandParent.Right().(*rbTreeNode[T]) == parent
 						if sibling.Child(lastDirection).(*rbTreeNode[T]).IsRed() {
-							grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
+							grandParent.SetChild(direction2, doubleRotate(lastDirection, parent))
 						} else if sibling.Child(!lastDirection).(*rbTreeNode[T]).IsRed() {
-							grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
+							grandParent.SetChild(direction2, singleRotate(lastDirection, parent))
 						}
 
 						// When performing a rotation to parent, child is not affected.
@@ -154,10 +154,10 @@ func Delete[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 						// grandParent.Child(direction2).Update()
 
 						// Ensure correct coloring
-						child.SetColor(Red)
-						grandParent.Child(direction2).(*rbTreeNode[T]).SetColor(Red)
-						grandParent.Child(direction2).Left().(*rbTreeNode[T]).SetColor(Black)
-						grandParent.Child(direction2).Right().(*rbTreeNode[T]).SetColor(Black)
+						child.SetColor(red)
+						grandParent.Child(direction2).(*rbTreeNode[T]).SetColor(red)
+						grandParent.Child(direction2).Left().(*rbTreeNode[T]).SetColor(black)
+						grandParent.Child(direction2).Right().(*rbTreeNode[T]).SetColor(black)
 					}
 				}
 			}
@@ -173,11 +173,11 @@ func Delete[T node.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 	// Update root and make it black
 	root = superRoot.Right().(*rbTreeNode[T])
 	if root != nil {
-		root.SetColor(Black)
+		root.SetColor(black)
 	}
 	return root
 }
 
 func (tree *RBTree[T]) Delete(value T) {
-	tree.SetRoot(Delete(tree.Root().(*rbTreeNode[T]), value))
+	tree.SetRoot(delete(tree.Root().(*rbTreeNode[T]), value))
 }

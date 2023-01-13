@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bstrees/pkg/rbtree"
+	"bstrees/pkg/anderson"
 	"bufio"
 	"fmt"
 	"os"
@@ -35,7 +35,7 @@ func ReadWithPanic(gin *bufio.Reader) int {
 }
 
 func main() {
-	tree := rbtree.New[int]()
+	tree := anderson.New[int]()
 	gin := bufio.NewReader(os.Stdin)
 	n := ReadWithPanic(gin)
 	for i := 0; i < n; i++ {
