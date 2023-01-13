@@ -1,6 +1,8 @@
 package tree
 
-import "bstrees/internal/node"
+import (
+	"bstrees/internal/node"
+)
 
 func SingleRotate[T node.Ordered](direction bool, root node.Noded[T]) node.Noded[T] {
 	save := root.Child(!direction)
@@ -12,9 +14,9 @@ func SingleRotate[T node.Ordered](direction bool, root node.Noded[T]) node.Noded
 }
 
 func LeftRotate[T node.Ordered](root node.Noded[T]) node.Noded[T] {
-	return SingleRotate(true, root)
+	return SingleRotate(false, root)
 }
 
 func RightRotate[T node.Ordered](root node.Noded[T]) node.Noded[T] {
-	return SingleRotate(false, root)
+	return SingleRotate(true, root)
 }

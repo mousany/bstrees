@@ -1,306 +1,188 @@
 package splay
 
 import (
+	"bstrees/internal/node"
+	"bstrees/internal/tree"
 	"bstrees/pkg/errors"
-	"bstrees/pkg/splay/node"
-	"bstrees/pkg/trait/ordered"
 )
 
-type Splay[T ordered.Ordered] struct {
-	superRoot *node.SplayNode[T]
+type SplayTree[T node.Ordered] struct {
+	*tree.BaseTree[T] // In splay tree, root is not the root of the tree, but the right child of superRoot
 }
 
-func (thisTree *Splay[T]) Root() *node.SplayNode[T] {
-	return thisTree.superRoot.Right
+func New[T node.Ordered]() *SplayTree[T] {
+	tr := &SplayTree[T]{tree.New[T]()}
+	tr.BaseTree.SetRoot(newSplayTreeNode(T(rune(0))))
+	return tr
 }
 
-func (thisTree *Splay[T]) SetRoot(root *node.SplayNode[T]) {
-	thisTree.superRoot.SetChild(root, true)
+func (tr *SplayTree[T]) Root() node.Noded[T] {
+	return tr.BaseTree.Root().Right()
 }
 
-func New[T ordered.Ordered]() *Splay[T] {
-	return &Splay[T]{
-		superRoot: node.New(T(rune(0))),
-	}
+func (tr *SplayTree[T]) SetRoot(root node.Noded[T]) {
+	tr.BaseTree.Root().SetRight(root)
 }
 
-func LeftRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] {
-	right := root.Right
-	root.SetChild(right.Left, true)
-	right.SetChild(root, false)
-	root.Update()
-	right.Update()
-	return right
-}
-
-func RightRotate[T ordered.Ordered](root *node.SplayNode[T]) *node.SplayNode[T] {
-	left := root.Left
-	root.SetChild(left.Right, false)
-	left.SetChild(root, true)
-	root.Update()
-	left.Update()
-	return left
-}
-
-// Rotate root to its parent
-// After this operation, parent will be the child of root
-func RotateToParent[T ordered.Ordered](root *node.SplayNode[T]) {
-	grandParent := root.Parent.Parent
-	if root == root.Parent.Left {
-		// root is left child
-		root = RightRotate(root.Parent)
-	} else {
-		// root is right child
-		root = LeftRotate(root.Parent)
-	}
-	if grandParent != nil {
-		if grandParent.Left == root.Parent {
-			grandParent.SetChild(root, false)
-			grandParent.Update()
-		} else {
-			grandParent.SetChild(root, true)
-			grandParent.Update()
-		}
-	}
-}
-
-// Rotate root to target
-// After this operation, target will be the child of root
-func SplayRotate[T ordered.Ordered](root, target *node.SplayNode[T]) {
-	targetParent := target.Parent
-	for root.Parent != targetParent {
-		parent := root.Parent
-		grandParent := parent.Parent
-		direction := root == parent.Left
-		grandDirection := parent == grandParent.Left
-		if parent == target {
-			// root is the child of target
-			RotateToParent(root)
-		} else if direction == grandDirection {
-			// zig-zig
-			RotateToParent(parent)
-			RotateToParent(root)
-		} else {
-			// zig-zag
-			RotateToParent(root)
-			RotateToParent(root)
-		}
-	}
-}
-
-func Find[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
-	for p := root; p != nil; {
-		if p.Value == value {
-			return p
-		} else if value < p.Value {
-			p = p.Left
-		} else {
-			p = p.Right
-		}
-	}
-	return nil
-}
-
-func Kth[T ordered.Ordered](root *node.SplayNode[T], k uint32) *node.SplayNode[T] {
-	for p := root; p != nil; {
-		leftSize := uint32(0)
-		if p.Left != nil {
-			leftSize = p.Left.Size
-		}
-		if leftSize < k && leftSize+p.Rec >= k {
-			// SplayRotate(p, root)
-			return p
-		} else if leftSize+p.Rec < k {
-			k -= leftSize + p.Rec
-			p = p.Right
-		} else {
-			p = p.Left
-		}
-	}
-	return nil
-}
-
-func Insert[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
+func insert[T node.Ordered](root *splayTreeNode[T], value T) node.Noded[T] {
 	if root == nil {
-		return node.New(value)
+		return newSplayTreeNode(value)
 	} else {
-		superRoot := root.Parent
-
+		superRoot := root.Parent()
 		for p := root; p != nil; {
-			p.Size += 1
-			if value == p.Value {
-				p.Rec += 1
-				SplayRotate(p, root)
+			p.SetSize(p.Size() + 1)
+			if value == p.Value() {
+				p.SetRec(p.Rec() + 1)
+				splayRotate(p, root)
 				break
-			} else if value < p.Value {
-				if p.Left == nil {
-					p.SetChild(node.New(value), false)
-					SplayRotate(p.Left, root)
+			} else if value < p.Value() {
+				if p.Left().IsNil() {
+					p.SetLeft(newSplayTreeNode(value))
+					splayRotate(p.Left().(*splayTreeNode[T]), root)
 					break
 				} else {
-					p = p.Left
+					p = p.Left().(*splayTreeNode[T])
 				}
 			} else {
-				if p.Right == nil {
-					p.SetChild(node.New(value), true)
-					SplayRotate(p.Right, root)
+				if p.Right().IsNil() {
+					p.SetRight(newSplayTreeNode(value))
+					splayRotate(p.Right().(*splayTreeNode[T]), root)
 					break
 				} else {
-					p = p.Right
+					p = p.Right().(*splayTreeNode[T])
 				}
 			}
 		}
-
-		return superRoot.Right
+		return superRoot.Right()
 	}
 }
 
-func Delete[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
+func (tr *SplayTree[T]) Insert(value T) {
+	tr.SetRoot(insert(tr.Root().(*splayTreeNode[T]), value))
+}
+
+func Delete[T node.Ordered](root *splayTreeNode[T], value T) node.Noded[T] {
 	if root == nil {
-		return nil
+		return (*splayTreeNode[T])(nil)
 	}
-	superRoot := root.Parent
-	p := Find(root, value)
+	superRoot := root.Parent()
+	p := tree.Find(node.Noded[T](root), value).(*splayTreeNode[T])
 	if p == nil {
 		return root
 	}
-	SplayRotate(p, root)
-	if p.Rec > 1 {
-		p.Rec -= 1
-		p.Size -= 1
+	splayRotate(p, root)
+	if p.Rec() > 1 {
+		p.SetRec(p.Rec() - 1)
+		p.SetSize(p.Size() - 1)
 	} else {
-		if p.Left == nil && p.Right == nil {
-			superRoot.SetChild(nil, true)
-		} else if p.Left == nil {
-			superRoot.SetChild(p.Right, true)
-		} else if p.Right == nil {
-			superRoot.SetChild(p.Left, true)
+		if p.Left().IsNil() && p.Right().IsNil() {
+			superRoot.SetRight((*splayTreeNode[T])(nil))
+		} else if p.Left().IsNil() {
+			superRoot.SetRight(p.Right())
+		} else if p.Right().IsNil() {
+			superRoot.SetRight(p.Left())
 		} else {
-			maxLeft := p.Left
-			for maxLeft.Right != nil {
-				maxLeft.Size -= 1
-				maxLeft = maxLeft.Right
+			maxLeft := p.Left()
+			for !maxLeft.Right().IsNil() {
+				maxLeft.SetSize(maxLeft.Size() - 1)
+				maxLeft = maxLeft.Right()
 			}
-			SplayRotate(maxLeft, superRoot.Right)
-			maxLeft.SetChild(p.Right, true)
-			superRoot.SetChild(maxLeft, true)
-			superRoot.Right.Update()
+			splayRotate(maxLeft.(*splayTreeNode[T]), superRoot.Right().(*splayTreeNode[T]))
+			maxLeft.SetRight(p.Right())
+			superRoot.SetRight(maxLeft)
+			superRoot.Right().Update()
 		}
 	}
 
-	return superRoot.Right
+	return superRoot.Right()
 }
 
-func (thisTree *Splay[T]) Insert(value T) {
-	thisTree.SetRoot(Insert(thisTree.Root(), value))
+func (tr *SplayTree[T]) Delete(value T) {
+	tr.SetRoot(Delete(tr.Root().(*splayTreeNode[T]), value))
 }
 
-func (thisTree *Splay[T]) Delete(value T) {
-	thisTree.SetRoot(Delete(thisTree.Root(), value))
+func kth[T node.Ordered](root *splayTreeNode[T], k uint) node.Noded[T] {
+	for p := root; p != nil; {
+		leftSize := uint(0)
+		if !p.Left().IsNil() {
+			leftSize = p.Left().Size()
+		}
+		if leftSize < k && leftSize+p.Rec() >= k {
+			splayRotate(p, root)
+			return p
+		} else if leftSize+p.Rec() < k {
+			k -= leftSize + p.Rec()
+			p = p.Right().(*splayTreeNode[T])
+		} else {
+			p = p.Left().(*splayTreeNode[T])
+		}
+	}
+	return (*splayTreeNode[T])(nil)
 }
 
-func (thisTree *Splay[T]) Contains(value T) bool {
-	return Find(thisTree.Root(), value) != nil
-}
-
-func (thisTree *Splay[T]) Kth(k uint32) (T, error) {
-	result := Kth(thisTree.Root(), k)
-	if result == nil {
+func (tr *SplayTree[T]) Kth(k uint) (T, error) {
+	result := kth(tr.Root().(*splayTreeNode[T]), k)
+	if result.IsNil() {
 		return T(rune(0)), errors.ErrOutOfRange
 	}
-	return result.Value, nil
+	return result.Value(), nil
 }
 
-func (thisTree *Splay[T]) Size() uint32 {
-	if thisTree.Root() == nil {
-		return 0
-	}
-	return thisTree.Root().Size
-}
-
-func (thisTree *Splay[T]) Empty() bool {
-	return thisTree.Root() == nil
-}
-
-func (thisTree *Splay[T]) Clear() {
-	thisTree.SetRoot(nil)
-}
-
-func Rank[T ordered.Ordered](root *node.SplayNode[T], value T) uint32 {
-	rank := uint32(0)
-	for root != nil {
-		if root.Value < value {
-			rank += 1
-			if root.Left != nil {
-				rank += root.Left.Size
-			}
-			root = root.Right
-		} else {
-			root = root.Left
-		}
-	}
-	return rank + 1
-}
-
-func (thisTree *Splay[T]) Rank(value T) uint32 {
-	// return Rank(thisTree.Root, value)
-	p := Find(thisTree.Root(), value)
+func (tr *SplayTree[T]) Rank(value T) uint {
+	p := tree.Find(tr.Root(), value).(*splayTreeNode[T])
 	if p == nil {
-		prev := Prev(thisTree.Root(), value)
+		prev := tree.Prev(tr.Root(), value).(*splayTreeNode[T])
 		if prev != nil {
-			SplayRotate(prev, thisTree.Root())
-			if prev.Left != nil {
-				return prev.Left.Size + prev.Rec + 1
+			splayRotate(prev, tr.Root().(*splayTreeNode[T]))
+			if !prev.Left().IsNil() {
+				return prev.Left().Size() + prev.Rec() + 1
 			}
-			return prev.Rec + 1
+			return prev.Rec() + 1
 		}
 		return 1
 	}
-	SplayRotate(p, thisTree.Root())
-	if p.Left != nil {
-		return p.Left.Size + 1
+	splayRotate(p, tr.Root().(*splayTreeNode[T]))
+	if !p.Left().IsNil() {
+		return p.Left().Size() + 1
 	}
 	return 1
 }
 
-func Prev[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
-	var result *node.SplayNode[T]
-	for p := root; p != nil; {
-		if value > p.Value {
-			result = p
-			p = p.Right
-		} else {
-			p = p.Left
-		}
+func (tr *SplayTree[T]) Size() uint {
+	if tr.Root().IsNil() {
+		return 0
 	}
-	return result
+	return tr.Root().Size()
 }
 
-func (thisTree *Splay[T]) Prev(value T) (T, error) {
-	prev := Prev(thisTree.Root(), value)
-	if prev == nil {
+func (tr *SplayTree[T]) Empty() bool {
+	return tr.Root().IsNil()
+}
+
+func (tr *SplayTree[T]) Clear() {
+	tr.SetRoot((*splayTreeNode[T])(nil))
+}
+
+func (tr *SplayTree[T]) Contains(value T) bool {
+	return tree.Find(tr.Root(), value) != nil
+}
+
+func (tr *SplayTree[T]) Prev(value T) (T, error) {
+	result := tree.Prev(tr.Root(), value)
+	if tree.IsNil(result) {
 		return T(rune(0)), errors.ErrNoPrevValue
 	}
-	return prev.Value, nil
+	return result.Value(), nil
 }
 
-func Next[T ordered.Ordered](root *node.SplayNode[T], value T) *node.SplayNode[T] {
-	var result *node.SplayNode[T]
-	for p := root; p != nil; {
-		if value < p.Value {
-			result = p
-			p = p.Left
-		} else {
-			p = p.Right
-		}
-	}
-	return result
-}
-
-func (thisTree *Splay[T]) Next(value T) (T, error) {
-	next := Next(thisTree.Root(), value)
-	if next == nil {
+func (tr *SplayTree[T]) Next(value T) (T, error) {
+	result := tree.Next(tr.Root(), value)
+	if tree.IsNil(result) {
 		return T(rune(0)), errors.ErrNoNextValue
 	}
-	return next.Value, nil
+	return result.Value(), nil
+}
+
+func (tr *SplayTree[T]) String() string {
+	return tree.String(tr.Root())
 }

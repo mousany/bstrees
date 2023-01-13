@@ -9,5 +9,6 @@ var (
 	ErrNoPrevValue = errorsPkg.New("previous value does not exist")
 	ErrNoNextValue = errorsPkg.New("next value does not exist")
 
-	ErrViolatedRedBlackTree = errorsPkg.New("red-black tree property is violated")
+	ErrViolatedBSTProperty = errorsPkg.New("binary search tree property is violated")
+	ErrViolatedRBProperty  = errorsPkg.New("red-black tree property is violated")
 )

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bstrees/pkg/fhq"
+	"bstrees/pkg/splay"
 	"bufio"
 	"fmt"
 	"os"
@@ -34,25 +34,31 @@ func ReadWithPanic(gin *bufio.Reader) int {
 	return value
 }
 
+const Debug = false
+
 func main() {
-	tree := fhq.New[int]()
+
+	lastSize := uint(0)
+	tr := splay.New[int]()
 	gin := bufio.NewReader(os.Stdin)
 	n := ReadWithPanic(gin)
 	for i := 0; i < n; i++ {
 		opt := ReadWithPanic(gin)
 		value := ReadWithPanic(gin)
-		// fmt.Println("----------------")
-		// fmt.Println(opt, value)
+		if Debug {
+			fmt.Println("----------------")
+			fmt.Println(opt, value)
+		}
 		switch opt {
 		case 1:
-			tree.Insert(value)
+			tr.Insert(value)
 		case 2:
-			tree.Delete(value)
+			tr.Delete(value)
 		case 3:
-			fmt.Println(tree.Rank(value))
+			fmt.Println(tr.Rank(value))
 		case 4:
 			{
-				kth, err := tree.Kth(uint(value))
+				kth, err := tr.Kth(uint(value))
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -61,7 +67,7 @@ func main() {
 			}
 		case 5:
 			{
-				kth, err := tree.Prev(value)
+				kth, err := tr.Prev(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -70,7 +76,7 @@ func main() {
 			}
 		case 6:
 			{
-				kth, err := tree.Next(value)
+				kth, err := tr.Next(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -78,8 +84,25 @@ func main() {
 				fmt.Println(kth)
 			}
 		}
-		// if opt == 1 || opt == 2 {
-		// 	println(tree.String())
-		// }
+		if Debug && (opt == 1 || opt == 2) {
+			err := splay.CheckBSTProperty(tr.Root())
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			if opt == 1 {
+				if tr.Size() != lastSize+1 {
+					fmt.Println("Insert error")
+					os.Exit(1)
+				}
+			} else {
+				if tr.Size() != lastSize-1 {
+					fmt.Println("Delete error")
+					os.Exit(1)
+				}
+			}
+			lastSize = tr.Size()
+			fmt.Println(tr.String())
+		}
 	}
 }

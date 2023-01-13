@@ -43,6 +43,10 @@ type BaseTree[T node.Ordered] struct {
 	root node.Noded[T]
 }
 
+func IsNil[T node.Ordered](root node.Noded[T]) bool {
+	return root == nil || root.IsNil()
+}
+
 func New[T node.Ordered]() *BaseTree[T] {
 	return &BaseTree[T]{}
 }
@@ -56,6 +60,9 @@ func (tree *BaseTree[T]) SetRoot(root node.Noded[T]) {
 }
 
 func (tree *BaseTree[T]) Size() uint {
+	if tree.root.IsNil() {
+		return 0
+	}
 	return tree.root.Size()
 }
 
@@ -104,7 +111,7 @@ func Kth[T node.Ordered](root node.Noded[T], k uint) node.Noded[T] {
 
 func (tree *BaseTree[T]) Kth(k uint) (T, error) {
 	result := Kth(tree.root, k)
-	if result.IsNil() {
+	if IsNil(result) {
 		return T(rune(0)), errors.ErrOutOfRange
 	}
 	return result.Value(), nil
@@ -145,7 +152,7 @@ func Prev[T node.Ordered](root node.Noded[T], value T) node.Noded[T] {
 
 func (tree *BaseTree[T]) Prev(value T) (T, error) {
 	prev := Prev(tree.root, value)
-	if prev.IsNil() {
+	if IsNil(prev) {
 		return T(rune(0)), errors.ErrNoPrevValue
 	}
 	return prev.Value(), nil
@@ -166,7 +173,7 @@ func Next[T node.Ordered](root node.Noded[T], value T) node.Noded[T] {
 
 func (tree *BaseTree[T]) Next(value T) (T, error) {
 	next := Next(tree.root, value)
-	if next.IsNil() {
+	if IsNil(next) {
 		return T(rune(0)), errors.ErrNoNextValue
 	}
 	return next.Value(), nil
@@ -186,4 +193,36 @@ func String[T node.Ordered](root node.Noded[T]) string {
 
 func (tree *BaseTree[T]) String() string {
 	return String(tree.root)
+}
+
+func CheckBSTProperty[T node.Ordered](root node.Noded[T]) error {
+	if root.IsNil() {
+		return nil
+	}
+	left, right := root.Left(), root.Right()
+	if !left.IsNil() && left.Value() > root.Value() {
+		return errors.ErrViolatedBSTProperty
+	}
+	if !right.IsNil() && right.Value() < root.Value() {
+		return errors.ErrViolatedBSTProperty
+	}
+	leftSize := uint(0)
+	if !left.IsNil() {
+		leftSize = left.Size()
+	}
+	rightSize := uint(0)
+	if !right.IsNil() {
+		rightSize = right.Size()
+	}
+	if leftSize+rightSize+1 != root.Size() {
+		return errors.ErrViolatedBSTProperty
+	}
+
+	if err := CheckBSTProperty(left); err != nil {
+		return err
+	}
+	if err := CheckBSTProperty(right); err != nil {
+		return err
+	}
+	return nil
 }

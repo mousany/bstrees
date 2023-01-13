@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 )
 
@@ -170,6 +169,10 @@ type BaseTree struct {
 	root Noded
 }
 
+func IsNil(root Noded) bool {
+	return root == nil || root.IsNil()
+}
+
 func newBaseTree() *BaseTree {
 	return &BaseTree{}
 }
@@ -183,11 +186,14 @@ func (tree *BaseTree) SetRoot(root Noded) {
 }
 
 func (tree *BaseTree) Size() uint {
+	if tree.root.IsNil() {
+		return 0
+	}
 	return tree.root.Size()
 }
 
 func (tree *BaseTree) Empty() bool {
-	return tree.root == nil
+	return tree.root.IsNil()
 }
 
 func (tree *BaseTree) Clear() {
@@ -231,7 +237,7 @@ func Kth(root Noded, k uint) Noded {
 
 func (tree *BaseTree) Kth(k uint) (int, error) {
 	result := Kth(tree.root, k)
-	if result.IsNil() {
+	if IsNil(result) {
 		return int(rune(0)), errors.New("k is out of range")
 	}
 	return result.Value(), nil
@@ -272,7 +278,7 @@ func Prev(root Noded, value int) Noded {
 
 func (tree *BaseTree) Prev(value int) (int, error) {
 	prev := Prev(tree.root, value)
-	if prev.IsNil() {
+	if IsNil(prev) {
 		return int(rune(0)), errors.New("no previous value")
 	}
 	return prev.Value(), nil
@@ -293,7 +299,7 @@ func Next(root Noded, value int) Noded {
 
 func (tree *BaseTree) Next(value int) (int, error) {
 	next := Next(tree.root, value)
-	if next.IsNil() {
+	if IsNil(next) {
 		return int(rune(0)), errors.New("no next value")
 	}
 	return next.Value(), nil
@@ -325,124 +331,294 @@ func SingleRotate(direction bool, root Noded) Noded {
 }
 
 func LeftRotate(root Noded) Noded {
-	return SingleRotate(true, root)
-}
-
-func RightRotate(root Noded) Noded {
 	return SingleRotate(false, root)
 }
 
-type treapTreeNode struct {
-	*BaseTreeNode
-	weight uint // Random weight
+func RightRotate(root Noded) Noded {
+	return SingleRotate(true, root)
 }
 
-func newTreapTreeNode(value int) *treapTreeNode {
-	n := &treapTreeNode{BaseTreeNode: newBaseTreeNode(value), weight: uint(rand.Uint32())}
-	n.SetLeft((*treapTreeNode)(nil))
-	n.SetRight((*treapTreeNode)(nil))
+type splayTreeNode struct {
+	*BaseTreeNode
+
+	parent *splayTreeNode
+	rec    uint // This field is Splay only
+	// Because Splay operation will scatter nodes with the same value
+	// While traditional BST search mechanics is too slow on Splay
+}
+
+func newSplayTreeNode(value int) *splayTreeNode {
+	n := &splayTreeNode{
+		BaseTreeNode: newBaseTreeNode(value),
+		parent:       (*splayTreeNode)(nil),
+		rec:          1,
+	}
+	n.SetLeft((*splayTreeNode)(nil))
+	n.SetRight((*splayTreeNode)(nil))
 	return n
 }
 
-func (n *treapTreeNode) Weight() uint {
-	return n.weight
-}
-
-func (n *treapTreeNode) IsNil() bool {
+func (n *splayTreeNode) IsNil() bool {
 	return n == nil
 }
 
-type FHQTree struct {
-	*BaseTree
+func (n *splayTreeNode) Parent() *splayTreeNode {
+	return n.parent
 }
 
-func New() *FHQTree {
-	tr := &FHQTree{newBaseTree()}
-	tr.SetRoot((*treapTreeNode)(nil))
+func (n *splayTreeNode) SetParent(parent *splayTreeNode) {
+	n.parent = parent
+}
+
+func (n *splayTreeNode) Rec() uint {
+	return n.rec
+}
+
+func (n *splayTreeNode) SetRec(rec uint) {
+	n.rec = rec
+}
+
+func (n *splayTreeNode) SetLeft(left Noded) {
+	n.BaseTreeNode.SetLeft(left)
+	if !left.IsNil() {
+		left.(*splayTreeNode).SetParent(n)
+	}
+}
+
+func (n *splayTreeNode) SetRight(right Noded) {
+	n.BaseTreeNode.SetRight(right)
+	if !right.IsNil() {
+		right.(*splayTreeNode).SetParent(n)
+	}
+}
+
+func (n *splayTreeNode) SetChild(right bool, child Noded) {
+	if right {
+		n.SetRight(child)
+	} else {
+		n.SetLeft(child)
+	}
+}
+
+func (n *splayTreeNode) Update() {
+	n.BaseTreeNode.Update()
+	n.SetSize(n.Size() + n.Rec() - 1)
+}
+
+type SplayTree struct {
+	*BaseTree // In splay tree, root is not the root of the tree, but the right child of superRoot
+}
+
+func New() *SplayTree {
+	tr := &SplayTree{newBaseTree()}
+	tr.BaseTree.SetRoot(newSplayTreeNode(int(rune(0))))
 	return tr
 }
 
-func (tr *FHQTree) Insert(value int) {
-	left, right := split(tr.Root().(*treapTreeNode), value)
-	tr.SetRoot(merge(merge(left, newTreapTreeNode(value)), right))
+func (tr *SplayTree) Root() Noded {
+	return tr.BaseTree.Root().Right()
 }
 
-func (tr *FHQTree) Delete(value int) {
-	left, right := split(tr.Root().(*treapTreeNode), value)
-	left, mid := split(left, value-1)
-	if mid != nil {
-		mid = merge(mid.Left().(*treapTreeNode), mid.Right().(*treapTreeNode))
+func (tr *SplayTree) SetRoot(root Noded) {
+	tr.BaseTree.Root().SetRight(root)
+}
+
+func insert(root *splayTreeNode, value int) Noded {
+	if root == nil {
+		return newSplayTreeNode(value)
+	} else {
+		superRoot := root.Parent()
+		for p := root; p != nil; {
+			p.SetSize(p.Size() + 1)
+			if value == p.Value() {
+				p.SetRec(p.Rec() + 1)
+				splayRotate(p, root)
+				break
+			} else if value < p.Value() {
+				if p.Left().IsNil() {
+					p.SetLeft(newSplayTreeNode(value))
+					splayRotate(p.Left().(*splayTreeNode), root)
+					break
+				} else {
+					p = p.Left().(*splayTreeNode)
+				}
+			} else {
+				if p.Right().IsNil() {
+					p.SetRight(newSplayTreeNode(value))
+					splayRotate(p.Right().(*splayTreeNode), root)
+					break
+				} else {
+					p = p.Right().(*splayTreeNode)
+				}
+			}
+		}
+		return superRoot.Right()
 	}
-	tr.SetRoot(merge(merge(left, mid), right))
 }
 
-func (tr *FHQTree) Rank(value int) uint {
-	left, right := split(tr.Root().(*treapTreeNode), value-1)
-	defer func() {
-		tr.SetRoot(merge(left, right))
-	}()
-	if left == nil {
+func (tr *SplayTree) Insert(value int) {
+	tr.SetRoot(insert(tr.Root().(*splayTreeNode), value))
+}
+
+func Delete(root *splayTreeNode, value int) Noded {
+	if root == nil {
+		return (*splayTreeNode)(nil)
+	}
+	superRoot := root.Parent()
+	p := Find(Noded(root), value).(*splayTreeNode)
+	if p == nil {
+		return root
+	}
+	splayRotate(p, root)
+	if p.Rec() > 1 {
+		p.SetRec(p.Rec() - 1)
+		p.SetSize(p.Size() - 1)
+	} else {
+		if p.Left().IsNil() && p.Right().IsNil() {
+			superRoot.SetRight((*splayTreeNode)(nil))
+		} else if p.Left().IsNil() {
+			superRoot.SetRight(p.Right())
+		} else if p.Right().IsNil() {
+			superRoot.SetRight(p.Left())
+		} else {
+			maxLeft := p.Left()
+			for !maxLeft.Right().IsNil() {
+				maxLeft.SetSize(maxLeft.Size() - 1)
+				maxLeft = maxLeft.Right()
+			}
+			splayRotate(maxLeft.(*splayTreeNode), superRoot.Right().(*splayTreeNode))
+			maxLeft.SetRight(p.Right())
+			superRoot.SetRight(maxLeft)
+			superRoot.Right().Update()
+		}
+	}
+
+	return superRoot.Right()
+}
+
+func (tr *SplayTree) Delete(value int) {
+	tr.SetRoot(Delete(tr.Root().(*splayTreeNode), value))
+}
+
+func kth(root *splayTreeNode, k uint) Noded {
+	for p := root; p != nil; {
+		leftSize := uint(0)
+		if !p.Left().IsNil() {
+			leftSize = p.Left().Size()
+		}
+		if leftSize < k && leftSize+p.Rec() >= k {
+			splayRotate(p, root)
+			return p
+		} else if leftSize+p.Rec() < k {
+			k -= leftSize + p.Rec()
+			p = p.Right().(*splayTreeNode)
+		} else {
+			p = p.Left().(*splayTreeNode)
+		}
+	}
+	return (*splayTreeNode)(nil)
+}
+
+func (tr *SplayTree) Kth(k uint) (int, error) {
+	result := kth(tr.Root().(*splayTreeNode), k)
+	if result.IsNil() {
+		return int(rune(0)), errors.New("k is out of range")
+	}
+	return result.Value(), nil
+}
+
+func (tr *SplayTree) Rank(value int) uint {
+	p := Find(tr.Root(), value).(*splayTreeNode)
+	if p == nil {
+		prev := Prev(tr.Root(), value).(*splayTreeNode)
+		if prev != nil {
+			splayRotate(prev, tr.Root().(*splayTreeNode))
+			if !prev.Left().IsNil() {
+				return prev.Left().Size() + prev.Rec() + 1
+			}
+			return prev.Rec() + 1
+		}
 		return 1
 	}
-	return left.Size() + 1
+	splayRotate(p, tr.Root().(*splayTreeNode))
+	if !p.Left().IsNil() {
+		return p.Left().Size() + 1
+	}
+	return 1
 }
 
-func (tr *FHQTree) Prev(value int) (int, error) {
-	left, right := split(tr.Root().(*treapTreeNode), value-1)
-	defer func() {
-		tr.SetRoot(merge(left, right))
-	}()
-	result := Kth(Noded(left), left.Size())
-	if result == nil {
-		return int(0), errors.New("no previous value")
+func (tr *SplayTree) Size() uint {
+	if tr.Root().IsNil() {
+		return 0
+	}
+	return tr.Root().Size()
+}
+
+func (tr *SplayTree) Empty() bool {
+	return tr.Root().IsNil()
+}
+
+func (tr *SplayTree) Clear() {
+	tr.SetRoot((*splayTreeNode)(nil))
+}
+
+func (tr *SplayTree) Contains(value int) bool {
+	return Find(tr.Root(), value) != nil
+}
+
+func (tr *SplayTree) Prev(value int) (int, error) {
+	result := Prev(tr.Root(), value)
+	if IsNil(result) {
+		return int(rune(0)), errors.New("no previous value")
 	}
 	return result.Value(), nil
 }
 
-func (tr *FHQTree) Next(value int) (int, error) {
-	left, right := split(tr.Root().(*treapTreeNode), value)
-	defer func() {
-		tr.SetRoot(merge(left, right))
-	}()
-	result := Kth(Noded(right), 1)
-	if result == nil {
-		return int(0), errors.New("no next value")
+func (tr *SplayTree) Next(value int) (int, error) {
+	result := Next(tr.Root(), value)
+	if IsNil(result) {
+		return int(rune(0)), errors.New("no next value")
 	}
 	return result.Value(), nil
 }
 
-func merge(left *treapTreeNode, right *treapTreeNode) *treapTreeNode {
-	if left == nil {
-		return right
-	}
-	if right == nil {
-		return left
-	}
-	if left.Weight() < right.Weight() {
-		left.SetRight(merge(left.Right().(*treapTreeNode), right))
-		left.Update()
-		return left
-	} else {
-		right.SetLeft(merge(left, right.Left().(*treapTreeNode)))
-		right.Update()
-		return right
+func (tr *SplayTree) String() string {
+	return String(tr.Root())
+}
+
+// Rotate root to its parent
+// After this operation, parent will be the child of root
+func rotateToParent(root *splayTreeNode) {
+	grandParent := root.Parent().Parent()
+	parentDirection := root == root.Parent().Left().(*splayTreeNode)
+	root = SingleRotate(parentDirection, Noded(root.Parent())).(*splayTreeNode)
+	if grandParent != nil {
+		grandParentDirection := root.Parent() == grandParent.Left().(*splayTreeNode)
+		grandParent.SetChild(!grandParentDirection, Noded(root))
 	}
 }
 
-func split(root *treapTreeNode, key int) (*treapTreeNode, *treapTreeNode) {
-	if root == nil {
-		return nil, nil
-	}
-	if root.Value() <= key {
-		left, right := split(root.Right().(*treapTreeNode), key)
-		root.SetRight(left)
-		root.Update()
-		return root, right
-	} else {
-		left, right := split(root.Left().(*treapTreeNode), key)
-		root.SetLeft(right)
-		root.Update()
-		return left, root
+// Rotate root to target
+// After this operation, target will be the child of root
+func splayRotate(root, target *splayTreeNode) {
+	targetParent := target.Parent()
+	for root.Parent() != targetParent {
+		parent := root.Parent()
+		grandParent := parent.Parent()
+		direction := root == parent.Left().(*splayTreeNode)
+		grandDirection := parent == grandParent.Left().(*splayTreeNode)
+		if parent == target {
+			// root is the child of target
+			rotateToParent(root)
+		} else if direction == grandDirection {
+			// zig-zig
+			rotateToParent(parent)
+			rotateToParent(root)
+		} else {
+			// zig-zag
+			rotateToParent(root)
+			rotateToParent(root)
+		}
 	}
 }
 
@@ -474,21 +650,50 @@ func ReadWithPanic(gin *bufio.Reader) int {
 }
 
 func main() {
+	ans, last := 0, 0
 	tree := New()
 	gin := bufio.NewReader(os.Stdin)
-	n := ReadWithPanic(gin)
+	n, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	m, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	for i := 0; i < n; i++ {
-		opt := ReadWithPanic(gin)
-		value := ReadWithPanic(gin)
-		// fmt.Println("----------------")
-		// fmt.Println(opt, value)
+		x, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		tree.Insert(x)
+	}
+	for i := 0; i < m; i++ {
+		opt, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value ^= last
 		switch opt {
 		case 1:
 			tree.Insert(value)
 		case 2:
 			tree.Delete(value)
 		case 3:
-			fmt.Println(tree.Rank(value))
+			{
+				rank := tree.Rank(value)
+				ans ^= int(rank)
+				last = int(rank)
+			}
 		case 4:
 			{
 				kth, err := tree.Kth(uint(value))
@@ -496,29 +701,30 @@ func main() {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= kth
+				last = kth
 			}
 		case 5:
 			{
-				kth, err := tree.Prev(value)
+				prev, err := tree.Prev(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= prev
+				last = prev
 			}
 		case 6:
 			{
-				kth, err := tree.Next(value)
+				next, err := tree.Next(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= next
+				last = next
 			}
 		}
-		// if opt == 1 || opt == 2 {
-		// 	println(tree.String())
-		// }
 	}
+	fmt.Println(ans)
 }
