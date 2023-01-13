@@ -43,6 +43,10 @@ type BaseTree[T node.Ordered] struct {
 	root node.Noded[T]
 }
 
+func New[T node.Ordered]() *BaseTree[T] {
+	return &BaseTree[T]{}
+}
+
 func (tree *BaseTree[T]) Root() node.Noded[T] {
 	return tree.root
 }

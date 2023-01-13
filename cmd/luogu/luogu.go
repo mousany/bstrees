@@ -169,6 +169,10 @@ type BaseTree struct {
 	root Noded
 }
 
+func newBaseTree() *BaseTree {
+	return &BaseTree{}
+}
+
 func (tree *BaseTree) Root() Noded {
 	return tree.root
 }
@@ -310,122 +314,236 @@ func (tree *BaseTree) String() string {
 	return String(tree.root)
 }
 
-type avlTreeNode struct {
-	*BaseTreeNode     // Embedded node
-	height        int // Height of the node
+type RBColor bool
+
+const (
+	Red   RBColor = true
+	Black RBColor = false
+)
+
+type rbTreeNode struct {
+	*BaseTreeNode
+	color RBColor
 }
 
-func newAvlTreeNode(value int) *avlTreeNode {
-	n := &avlTreeNode{newBaseTreeNode(value), 0}
-	n.SetLeft((*avlTreeNode)(nil))
-	n.SetRight((*avlTreeNode)(nil))
+func newRBTreeNode(value int) *rbTreeNode {
+	n := &rbTreeNode{newBaseTreeNode(value), Red}
+	n.SetLeft((*rbTreeNode)(nil))
+	n.SetRight((*rbTreeNode)(nil))
 	return n
 }
 
-func (n *avlTreeNode) Height() int {
-	if n == nil {
-		return -1
-	}
-	return n.height
-}
-
-func (n *avlTreeNode) SetHeight(height int) {
-	n.height = height
-}
-
-func (n *avlTreeNode) IsNil() bool {
+func (n *rbTreeNode) IsNil() bool {
 	return n == nil
 }
 
-func (n *avlTreeNode) Update() {
-	n.BaseTreeNode.Update()
-	n.height = 0
-	if !n.Left().IsNil() {
-		n.height = Max(n.height, n.Left().(*avlTreeNode).Height()+1)
-	}
-	if !n.Right().IsNil() {
-		n.height = Max(n.height, n.Right().(*avlTreeNode).Height()+1)
-	}
+func (n *rbTreeNode) Color() RBColor {
+	return n.color
 }
 
-type AVLTree struct {
-	BaseTree
+func (n *rbTreeNode) SetColor(color RBColor) {
+	n.color = color
 }
 
-func New() *AVLTree {
-	tree := &AVLTree{BaseTree{}}
-	tree.SetRoot((*avlTreeNode)(nil))
+func (n *rbTreeNode) IsRed() bool {
+	return n != nil && n.color == Red
+}
+
+func (n *rbTreeNode) IsBlack() bool {
+	return n == nil || n.color == Black
+}
+
+type RBTree struct {
+	*BaseTree
+}
+
+func New() *RBTree {
+	tree := &RBTree{newBaseTree()}
+	tree.SetRoot((*rbTreeNode)(nil))
 	return tree
 }
 
-func Insert(root *avlTreeNode, value int) Noded {
+// https://archive.ph/EJTsz, Eternally Confuzzled's Blog
+func Insert(root *rbTreeNode, value int) *rbTreeNode {
 	if root == nil {
-		return newAvlTreeNode(value)
+		root = newRBTreeNode(value)
+		root.SetColor(Black)
+		return root
 	}
-	if value < root.Value() {
-		root.SetLeft(Insert(root.Left().(*avlTreeNode), value))
-	} else {
-		root.SetRight(Insert(root.Right().(*avlTreeNode), value))
-	}
-	root.Update()
-	return Balance(root)
-}
+	superRoot := newRBTreeNode(int(rune(0))) // Head in Eternally Confuzzled's paper
+	superRoot.SetRight(root)
 
-func (tree *AVLTree) Insert(value int) {
-	tree.SetRoot(Insert(tree.Root().(*avlTreeNode), value))
-}
+	var child *rbTreeNode = root                 // Q in Eternally Confuzzled's paper
+	var parent *rbTreeNode = nil                 // P in Eternally Confuzzled's paper
+	var grandParent *rbTreeNode = nil            // G in Eternally Confuzzled's paper
+	var greatGrandParent *rbTreeNode = superRoot // int in Eternally Confuzzled's paper
 
-func Delete(root *avlTreeNode, value int) Noded {
-	if root == nil {
-		return nil
-	}
-	if value < root.Value() {
-		root.SetLeft(Delete(root.Left().(*avlTreeNode), value))
-	} else if root.Value() < value {
-		root.SetRight(Delete(root.Right().(*avlTreeNode), value))
-	} else {
-		if root.Left().IsNil() {
-			return root.Right().(*avlTreeNode)
-		} else if root.Right().IsNil() {
-			return root.Left().(*avlTreeNode)
+	var direction bool = false
+	var lastDirection bool = false
+
+	// Search down
+	for ok := false; !ok; {
+		if child == nil {
+			// Insert new node at the bottom
+			child = newRBTreeNode(value)
+			parent.SetChild(direction, child)
+			ok = true
 		} else {
-			minNode := Kth(root.Right(), 1).(*avlTreeNode) // root.Right is not nil, so this will not fail
-			root.SetValue(minNode.Value())
-			root.SetRight(Delete(root.Right().(*avlTreeNode), minNode.Value()))
+			// Update size
+			child.SetSize(child.Size() + 1)
+			if child.Left().(*rbTreeNode).IsRed() && child.Right().(*rbTreeNode).IsRed() {
+				// Color flip
+				child.SetColor(Red)
+				child.Left().(*rbTreeNode).SetColor(Black)
+				child.Right().(*rbTreeNode).SetColor(Black)
+			}
+		}
+
+		if child.IsRed() && parent.IsRed() {
+			// Fix red violation
+			direction2 := greatGrandParent.Right().(*rbTreeNode) == grandParent
+			if child == parent.Child(lastDirection).(*rbTreeNode) {
+				greatGrandParent.SetChild(direction2, SingleRotate(grandParent, !lastDirection))
+				// When performing a single rotation to grandparent, child is not affected.
+				// So when grandparent(old) and parent(old) is updated, there are all +1ed.
+			} else {
+				greatGrandParent.SetChild(direction2, DoubleRotate(grandParent, !lastDirection))
+				if !ok {
+					// When performing a double rotation to grandparent, child is affected.
+					// So we need to update child(now grandParent)'s size. But there is no need we insert is done.
+					greatGrandParent.Child(direction2).SetSize(greatGrandParent.Child(direction2).Size() + 1)
+				}
+			}
+		}
+
+		lastDirection = direction
+		direction = child.Value() < value
+		if grandParent != nil {
+			greatGrandParent = grandParent
+		}
+
+		grandParent = parent
+		parent = child
+		child = child.Child(direction).(*rbTreeNode)
+	}
+
+	// Update root
+	root = superRoot.Right().(*rbTreeNode)
+
+	root.SetColor(Black)
+	return root
+}
+
+func (tree *RBTree) Insert(value int) {
+	tree.SetRoot(Insert(tree.Root().(*rbTreeNode), value))
+}
+
+func Delete(root *rbTreeNode, value int) *rbTreeNode {
+	if root == nil || Find(Noded(root), value).IsNil() {
+		return root
+	}
+	superRoot := newRBTreeNode(int(rune(0))) // Head in Eternally Confuzzled's paper
+	superRoot.SetRight(root)
+
+	var child *rbTreeNode = superRoot // Q in Eternally Confuzzled's paper
+	var parent *rbTreeNode = nil      // P in Eternally Confuzzled's paper
+	var grandParent *rbTreeNode = nil // G in Eternally Confuzzled's paper
+	var target *rbTreeNode = nil      // F in Eternally Confuzzled's paper
+	direction := true
+
+	// Search and push a red down
+	for !child.Child(direction).IsNil() {
+		lastDirection := direction
+
+		grandParent = parent
+		parent = child
+		child = child.Child(direction).(*rbTreeNode)
+		direction = child.Value() < value
+
+		// Update size
+		child.SetSize(child.Size() - 1)
+
+		// Save the target node
+		if child.Value() == value {
+			target = child
+		}
+
+		// Push the red node down
+		if !child.IsRed() && !child.Child(direction).(*rbTreeNode).IsRed() {
+			if child.Child(!direction).(*rbTreeNode).IsRed() {
+				parent.SetChild(lastDirection, SingleRotate(child, direction))
+				parent = parent.Child(lastDirection).(*rbTreeNode)
+
+				// When performing a single rotation to child, child is affected.
+				// So we need to update child and sibling(now parent)'s size.
+				child.SetSize(child.Size() - 1)
+				parent.Update()
+			} else if !child.Child(!direction).(*rbTreeNode).IsRed() {
+				sibling := parent.Child(!lastDirection).(*rbTreeNode)
+				if sibling != nil {
+					if !sibling.Child(!lastDirection).(*rbTreeNode).IsRed() && !sibling.Child(lastDirection).(*rbTreeNode).IsRed() {
+						// Color flip
+						parent.SetColor(Black)
+						sibling.SetColor(Red)
+						child.SetColor(Red)
+					} else {
+						direction2 := grandParent.Right().(*rbTreeNode) == parent
+						if sibling.Child(lastDirection).(*rbTreeNode).IsRed() {
+							grandParent.SetChild(direction2, DoubleRotate(parent, lastDirection))
+						} else if sibling.Child(!lastDirection).(*rbTreeNode).IsRed() {
+							grandParent.SetChild(direction2, SingleRotate(parent, lastDirection))
+						}
+
+						// When performing a rotation to parent, child is not affected.
+						// So all nodes on the path are -1ed.
+
+						// // Update Size
+						// parent.Update()
+						// grandParent.Child(direction2).Update()
+
+						// Ensure correct coloring
+						child.SetColor(Red)
+						grandParent.Child(direction2).(*rbTreeNode).SetColor(Red)
+						grandParent.Child(direction2).Left().(*rbTreeNode).SetColor(Black)
+						grandParent.Child(direction2).Right().(*rbTreeNode).SetColor(Black)
+					}
+				}
+			}
 		}
 	}
-	root.Update()
-	return Balance(root)
+
+	// Replace and remove the target node
+	if target != nil {
+		target.SetValue(child.Value())
+		parent.SetChild(parent.Right().(*rbTreeNode) == child, child.Child(child.Left().(*rbTreeNode) == nil))
+	}
+
+	// Update root and make it black
+	root = superRoot.Right().(*rbTreeNode)
+	if root != nil {
+		root.SetColor(Black)
+	}
+	return root
 }
 
-func (tree *AVLTree) Delete(value int) {
-	tree.SetRoot(Delete(tree.Root().(*avlTreeNode), value))
+func (tree *RBTree) Delete(value int) {
+	tree.SetRoot(Delete(tree.Root().(*rbTreeNode), value))
 }
 
-func SingleRotate(direction bool, root *avlTreeNode) Noded {
-	save := root.Child(!direction)
+func SingleRotate(root *rbTreeNode, direction bool) Noded {
+	save := root.Child(!direction).(*rbTreeNode)
 	root.SetChild(!direction, save.Child(direction))
 	save.SetChild(direction, root)
 	root.Update()
 	save.Update()
+	root.SetColor(Red)
+	save.SetColor(Black)
 	return save
 }
 
-func Balance(root *avlTreeNode) Noded {
-	leftHeight := root.Left().(*avlTreeNode).Height()
-	rightHeight := root.Right().(*avlTreeNode).Height()
-	if Abs(leftHeight-rightHeight) > 1 {
-		grandFatherDirection := leftHeight < rightHeight+1
-		father := root.Child(grandFatherDirection).(*avlTreeNode)
-		fatherLeftHeight := father.Left().(*avlTreeNode).Height()
-		fatherRightHeight := father.Right().(*avlTreeNode).Height()
-		fatherDirection := fatherLeftHeight < fatherRightHeight+1
-		if grandFatherDirection != fatherDirection {
-			root.SetChild(grandFatherDirection, SingleRotate(!fatherDirection, father))
-		}
-		return SingleRotate(!grandFatherDirection, root)
-	}
-	return root
+func DoubleRotate(root *rbTreeNode, direction bool) Noded {
+	root.SetChild(!direction, SingleRotate(root.Child(!direction).(*rbTreeNode), !direction))
+	return SingleRotate(root, direction)
 }
 
 func Read(istream *bufio.Reader) (int, error) {

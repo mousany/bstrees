@@ -6,11 +6,11 @@ import (
 )
 
 type AVLTree[T node.Ordered] struct {
-	tree.BaseTree[T]
+	*tree.BaseTree[T]
 }
 
 func New[T node.Ordered]() *AVLTree[T] {
-	tree := &AVLTree[T]{tree.BaseTree[T]{}}
+	tree := &AVLTree[T]{tree.New[T]()}
 	tree.SetRoot((*avlTreeNode[T])(nil))
 	return tree
 }
