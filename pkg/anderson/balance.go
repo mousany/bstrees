@@ -1,21 +1,15 @@
 package anderson
 
-import "bstrees/internal/node"
-
-func singleRotate[T node.Ordered](direction bool, root *andersonTreeNode[T]) node.Noded[T] {
-	save := root.Child(!direction)
-	root.SetChild(!direction, save.Child(direction))
-	save.SetChild(direction, root)
-	root.Update()
-	save.Update()
-	return save
-}
+import (
+	"bstrees/internal/node"
+	"bstrees/internal/tree"
+)
 
 func skew[T node.Ordered](root *andersonTreeNode[T]) node.Noded[T] {
 	if root.Left().(*andersonTreeNode[T]) == nil || root.Left().(*andersonTreeNode[T]).Level() != root.Level() {
 		return root
 	}
-	return singleRotate(true, root)
+	return tree.SingleRotate(true, node.Noded[T](root))
 }
 
 func split[T node.Ordered](root *andersonTreeNode[T]) node.Noded[T] {
@@ -24,7 +18,7 @@ func split[T node.Ordered](root *andersonTreeNode[T]) node.Noded[T] {
 		root.Right().Right().(*andersonTreeNode[T]).Level() != root.Level() {
 		return root
 	}
-	root = singleRotate(false, root).(*andersonTreeNode[T])
+	root = tree.SingleRotate(false, node.Noded[T](root)).(*andersonTreeNode[T])
 	root.SetLevel(root.Level() + 1)
 	return root
 }

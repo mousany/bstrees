@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 )
 
@@ -314,103 +315,7 @@ func (tree *BaseTree) String() string {
 	return String(tree.root)
 }
 
-type andersonTreeNode struct {
-	*BaseTreeNode
-	level uint
-}
-
-func newAndersonTreeNode(value int, level uint) *andersonTreeNode {
-	n := &andersonTreeNode{
-		BaseTreeNode: newBaseTreeNode(value),
-		level:        level,
-	}
-	n.SetLeft((*andersonTreeNode)(nil))
-	n.SetRight((*andersonTreeNode)(nil))
-	return n
-}
-
-func (n *andersonTreeNode) IsNil() bool {
-	return n == nil
-}
-
-func (n *andersonTreeNode) Level() uint {
-	return n.level
-}
-
-func (n *andersonTreeNode) SetLevel(level uint) {
-	n.level = level
-}
-
-type AndersonTree struct {
-	*BaseTree
-}
-
-func New() *AndersonTree {
-	tree := &AndersonTree{
-		BaseTree: newBaseTree(),
-	}
-	tree.SetRoot((*andersonTreeNode)(nil))
-	return tree
-}
-
-func Insert(root *andersonTreeNode, value int) Noded {
-	if root == nil {
-		return newAndersonTreeNode(value, 1)
-	}
-	if value < root.Value() {
-		root.SetLeft(Insert(root.Left().(*andersonTreeNode), value))
-	} else {
-		root.SetRight(Insert(root.Right().(*andersonTreeNode), value))
-	}
-	root.Update()
-	root = Skew(root).(*andersonTreeNode)
-	root = Split(root).(*andersonTreeNode)
-	return root
-}
-
-func (tree *AndersonTree) Insert(value int) {
-	tree.SetRoot(Insert(tree.Root().(*andersonTreeNode), value))
-}
-
-func Delete(root *andersonTreeNode, value int) Noded {
-	if root == nil {
-		return nil
-	}
-	if value < root.Value() {
-		root.SetLeft(Delete(root.Left().(*andersonTreeNode), value))
-	} else if value > root.Value() {
-		root.SetRight(Delete(root.Right().(*andersonTreeNode), value))
-	} else {
-		if root.Left().(*andersonTreeNode) == nil {
-			return root.Right()
-		} else if root.Right().(*andersonTreeNode) == nil {
-			return root.Left()
-		} else {
-			minNode := Kth(root.Right(), 1)
-			root.SetValue(minNode.Value())
-			root.SetRight(Delete(root.Right().(*andersonTreeNode), minNode.Value()))
-		}
-	}
-	root.Update()
-	if (root.Left().(*andersonTreeNode) != nil && root.Left().(*andersonTreeNode).Level() < root.Level()-1) ||
-		(root.Right().(*andersonTreeNode) != nil && root.Right().(*andersonTreeNode).Level() < root.Level()-1) {
-		root.SetLevel(root.Level() - 1)
-		if root.Right().(*andersonTreeNode) != nil && root.Right().(*andersonTreeNode).Level() > root.Level() {
-			root.Right().(*andersonTreeNode).SetLevel(
-				root.Level(),
-			)
-		}
-		root = Skew(root).(*andersonTreeNode)
-		root = Split(root).(*andersonTreeNode)
-	}
-	return root
-}
-
-func (tree *AndersonTree) Delete(value int) {
-	tree.SetRoot(Delete(tree.Root().(*andersonTreeNode), value))
-}
-
-func SingleRotate(direction bool, root *andersonTreeNode) Noded {
+func SingleRotate(direction bool, root Noded) Noded {
 	save := root.Child(!direction)
 	root.SetChild(!direction, save.Child(direction))
 	save.SetChild(direction, root)
@@ -419,22 +324,96 @@ func SingleRotate(direction bool, root *andersonTreeNode) Noded {
 	return save
 }
 
-func Skew(root *andersonTreeNode) Noded {
-	if root.Left().(*andersonTreeNode) == nil || root.Left().(*andersonTreeNode).Level() != root.Level() {
-		return root
-	}
+func LeftRotate(root Noded) Noded {
 	return SingleRotate(true, root)
 }
 
-func Split(root *andersonTreeNode) Noded {
-	if root.Right().(*andersonTreeNode) == nil ||
-		root.Right().Right().(*andersonTreeNode) == nil ||
-		root.Right().Right().(*andersonTreeNode).Level() != root.Level() {
-		return root
+func RightRotate(root Noded) Noded {
+	return SingleRotate(false, root)
+}
+
+type treapTreeNode struct {
+	*BaseTreeNode
+	weight uint // Random weight
+}
+
+func newTreapTreeNode(value int) *treapTreeNode {
+	n := &treapTreeNode{BaseTreeNode: newBaseTreeNode(value), weight: uint(rand.Uint32())}
+	n.SetLeft((*treapTreeNode)(nil))
+	n.SetRight((*treapTreeNode)(nil))
+	return n
+}
+
+func (n *treapTreeNode) Weight() uint {
+	return n.weight
+}
+
+func (n *treapTreeNode) IsNil() bool {
+	return n == nil
+}
+
+type TreapTree struct {
+	*BaseTree
+}
+
+func New() *TreapTree {
+	tree := &TreapTree{newBaseTree()}
+	tree.SetRoot((*treapTreeNode)(nil))
+	return tree
+}
+
+func insert(root *treapTreeNode, value int) Noded {
+	if root == nil {
+		return newTreapTreeNode(value)
 	}
-	root = SingleRotate(false, root).(*andersonTreeNode)
-	root.SetLevel(root.Level() + 1)
+	if root.Value() <= value {
+		root.SetRight(insert(root.Right().(*treapTreeNode), value))
+		if root.Right().(*treapTreeNode).Weight() < root.Weight() {
+			root = SingleRotate(false, Noded(root)).(*treapTreeNode)
+		}
+	} else {
+		root.SetLeft(insert(root.Left().(*treapTreeNode), value))
+		if root.Left().(*treapTreeNode).Weight() < root.Weight() {
+			root = SingleRotate(true, Noded(root)).(*treapTreeNode)
+		}
+	}
+	root.Update()
 	return root
+}
+
+func (tree *TreapTree) Insert(value int) {
+	tree.SetRoot(insert(tree.Root().(*treapTreeNode), value))
+}
+
+func delete(root *treapTreeNode, value int) Noded {
+	if root == nil {
+		return nil
+	}
+	if root.Value() == value {
+		if root.Left().IsNil() {
+			return root.Right()
+		}
+		if root.Right().IsNil() {
+			return root.Left()
+		}
+		if root.Left().(*treapTreeNode).Weight() < root.Right().(*treapTreeNode).Weight() {
+			root = SingleRotate(true, Noded(root)).(*treapTreeNode)
+			root.SetRight(delete(root.Right().(*treapTreeNode), value))
+		} else {
+			root = SingleRotate(false, Noded(root)).(*treapTreeNode)
+			root.SetLeft(delete(root.Left().(*treapTreeNode), value))
+		}
+	} else if root.Value() < value {
+		root.SetRight(delete(root.Right().(*treapTreeNode), value))
+	} else {
+		root.SetLeft(delete(root.Left().(*treapTreeNode), value))
+	}
+	root.Update()
+	return root
+}
+
+func (tree *TreapTree) Delete(value int) {
+	tree.SetRoot(delete(tree.Root().(*treapTreeNode), value))
 }
 
 func Read(istream *bufio.Reader) (int, error) {

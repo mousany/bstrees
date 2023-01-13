@@ -1,16 +1,15 @@
 package rb
 
-import "bstrees/internal/node"
+import (
+	"bstrees/internal/node"
+	"bstrees/internal/tree"
+)
 
 func singleRotate[T node.Ordered](direction bool, root *rbTreeNode[T]) node.Noded[T] {
-	save := root.Child(!direction).(*rbTreeNode[T])
-	root.SetChild(!direction, save.Child(direction))
-	save.SetChild(direction, root)
-	root.Update()
-	save.Update()
-	root.SetColor(red)
-	save.SetColor(black)
-	return save
+	root = tree.SingleRotate(direction, node.Noded[T](root)).(*rbTreeNode[T])
+	root.SetColor(black)
+	root.Child(direction).(*rbTreeNode[T]).SetColor(red)
+	return root
 }
 
 func doubleRotate[T node.Ordered](direction bool, root *rbTreeNode[T]) node.Noded[T] {

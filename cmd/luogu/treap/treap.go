@@ -2,219 +2,422 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 )
 
-type TreapNode struct {
-	Value  int
-	Left   *TreapNode
-	Right  *TreapNode
-	Weight uint32 // Random weight
-	Size   uint32 // Size of subtree, unnecessary if you don'int need kth element
-}
-
-func NewNode(value int) *TreapNode {
-	return &TreapNode{Value: value, Left: nil, Right: nil, Weight: rand.Uint32(), Size: 1}
-}
-
-func (thisNode *TreapNode) Update() {
-	thisNode.Size = 1
-	if thisNode.Left != nil {
-		thisNode.Size += thisNode.Left.Size
-	}
-	if thisNode.Right != nil {
-		thisNode.Size += thisNode.Right.Size
-	}
-}
-
-type Treap struct {
-	Root *TreapNode
-}
-
-func New() *Treap {
-	return &Treap{Root: nil}
-}
-
-func LeftRotate(root *TreapNode) *TreapNode {
-	right := root.Right
-	root.Right = right.Left
-	right.Left = root
-	root.Update()
-	right.Update()
-	return right
-}
-
-func RightRotate(root *TreapNode) *TreapNode {
-	left := root.Left
-	root.Left = left.Right
-	left.Right = root
-	root.Update()
-	left.Update()
-	return left
-}
-
-func Kth(root *TreapNode, k uint32) *TreapNode {
-	for root != nil {
-		leftSize := uint32(0)
-		if root.Left != nil {
-			leftSize = root.Left.Size
+func Min(args ...int) int {
+	min := args[0]
+	for _, arg := range args {
+		if arg < min {
+			min = arg
 		}
-		if leftSize+1 == k {
+	}
+	return min
+}
+
+func Max(args ...int) int {
+	max := args[0]
+	for _, arg := range args {
+		if arg > max {
+			max = arg
+		}
+	}
+	return max
+}
+
+func Abs(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+type Valued interface {
+	Value() int
+	SetValue(int)
+}
+
+type Sized interface {
+	Size() uint
+	SetSize(uint)
+}
+
+type Binary interface {
+	Left() Noded
+	SetLeft(Noded)
+	Right() Noded
+	SetRight(Noded)
+	Child(bool) Noded
+	SetChild(bool, Noded)
+}
+
+type Noded interface {
+	Valued
+	Sized
+	Binary
+	Update()
+	IsNil() bool
+}
+
+type BaseTreeNode struct {
+	value int
+	size  uint
+	left  Noded
+	right Noded
+}
+
+func newBaseTreeNode(value int) *BaseTreeNode {
+	return &BaseTreeNode{value, 1, nil, nil}
+}
+
+func (n *BaseTreeNode) Value() int {
+	return n.value
+}
+
+func (n *BaseTreeNode) SetValue(value int) {
+	n.value = value
+}
+
+func (n *BaseTreeNode) Size() uint {
+	return n.size
+}
+
+func (n *BaseTreeNode) SetSize(size uint) {
+	n.size = size
+}
+
+func (n *BaseTreeNode) Left() Noded {
+	return n.left
+}
+
+func (n *BaseTreeNode) SetLeft(left Noded) {
+	n.left = left
+}
+
+func (n *BaseTreeNode) Right() Noded {
+	return n.right
+}
+
+func (n *BaseTreeNode) SetRight(right Noded) {
+	n.right = right
+}
+
+func (n *BaseTreeNode) Child(right bool) Noded {
+	if right {
+		return n.right
+	}
+	return n.left
+}
+
+func (n *BaseTreeNode) SetChild(right bool, child Noded) {
+	if right {
+		n.right = child
+	} else {
+		n.left = child
+	}
+}
+
+func (n *BaseTreeNode) IsNil() bool {
+	return n == nil
+}
+
+func (n *BaseTreeNode) Update() {
+	n.size = 1
+	if !n.left.IsNil() {
+		n.size += n.left.Size()
+	}
+	if !n.right.IsNil() {
+		n.size += n.right.Size()
+	}
+}
+
+type Rooted interface {
+	Root() Noded
+	SetRoot(Noded)
+	Size() uint
+	Empty() bool
+	Clear()
+}
+
+type Insertable interface {
+	Insert(int)
+}
+
+type Deleteable interface {
+	Delete(int)
+}
+
+type Searchable interface {
+	Contains(int) bool
+	Kth(uint) (int, error)
+	Rank(int) uint
+	Prev(int) (int, error)
+	Next(int) (int, error)
+}
+
+type Treed interface {
+	Rooted
+	Insertable
+	Deleteable
+	Searchable
+}
+
+type BaseTree struct {
+	root Noded
+}
+
+func newBaseTree() *BaseTree {
+	return &BaseTree{}
+}
+
+func (tree *BaseTree) Root() Noded {
+	return tree.root
+}
+
+func (tree *BaseTree) SetRoot(root Noded) {
+	tree.root = root
+}
+
+func (tree *BaseTree) Size() uint {
+	return tree.root.Size()
+}
+
+func (tree *BaseTree) Empty() bool {
+	return tree.root == nil
+}
+
+func (tree *BaseTree) Clear() {
+	tree.root = nil
+}
+
+func Find(root Noded, value int) Noded {
+	for !root.IsNil() {
+		if root.Value() == value {
 			return root
-		} else if leftSize+1 < k {
-			k -= leftSize + 1
-			root = root.Right
+		} else if root.Value() < value {
+			root = root.Right()
 		} else {
-			root = root.Left
+			root = root.Left()
 		}
 	}
 	return nil
 }
 
-func Insert(root *TreapNode, value int) *TreapNode {
-	if root == nil {
-		return NewNode(value)
-	}
-	if root.Value <= value {
-		root.Right = Insert(root.Right, value)
-		if root.Right.Weight < root.Weight {
-			root = LeftRotate(root)
-		}
-	} else {
-		root.Left = Insert(root.Left, value)
-		if root.Left.Weight < root.Weight {
-			root = RightRotate(root)
-		}
-	}
-	root.Update()
-	return root
+func (tree *BaseTree) Contains(value int) bool {
+	return !Find(tree.root, value).IsNil()
 }
 
-func (thisTree *Treap) Insert(value int) {
-	thisTree.Root = Insert(thisTree.Root, value)
-}
-
-func Delete(root *TreapNode, value int) *TreapNode {
-	if root == nil {
-		return nil
-	}
-	if root.Value == value {
-		if root.Left == nil {
-			return root.Right
+func Kth(root Noded, k uint) Noded {
+	for !root.IsNil() {
+		leftSize := uint(0)
+		if !root.Left().IsNil() {
+			leftSize = root.Left().Size()
 		}
-		if root.Right == nil {
-			return root.Left
-		}
-		if root.Left.Weight < root.Right.Weight {
-			root = RightRotate(root)
-			root.Right = Delete(root.Right, value)
+		if leftSize+1 == k {
+			return root
+		} else if leftSize+1 < k {
+			k -= leftSize + 1
+			root = root.Right()
 		} else {
-			root = LeftRotate(root)
-			root.Left = Delete(root.Left, value)
+			root = root.Left()
 		}
-	} else if root.Value < value {
-		root.Right = Delete(root.Right, value)
-	} else {
-		root.Left = Delete(root.Left, value)
 	}
-	root.Update()
-	return root
+	return nil
 }
 
-func (thisTree *Treap) Delete(value int) {
-	thisTree.Root = Delete(thisTree.Root, value)
-}
-
-func (thisTree *Treap) Kth(k uint32) (int, error) {
-	result := Kth(thisTree.Root, k)
-	if result == nil {
-		return int(rune(0)), errors.New("out of range")
+func (tree *BaseTree) Kth(k uint) (int, error) {
+	result := Kth(tree.root, k)
+	if result.IsNil() {
+		return int(rune(0)), errors.New("k is out of range")
 	}
-	return result.Value, nil
+	return result.Value(), nil
 }
 
-func (thisTree *Treap) Size() uint32 {
-	if thisTree.Root == nil {
-		return 0
-	}
-	return thisTree.Root.Size
-}
-
-func (thisTree *Treap) Empty() bool {
-	return thisTree.Root == nil
-}
-
-func (thisTree *Treap) Clear() {
-	thisTree.Root = nil
-}
-
-func Rank(root *TreapNode, value int) uint32 {
-	rank := uint32(0)
-	for root != nil {
-		if root.Value < value {
+func Rank(root Noded, value int) uint {
+	rank := uint(0)
+	for !root.IsNil() {
+		if root.Value() < value {
 			rank += 1
-			if root.Left != nil {
-				rank += root.Left.Size
+			if !root.Left().IsNil() {
+				rank += root.Left().Size()
 			}
-			root = root.Right
+			root = root.Right()
 		} else {
-			root = root.Left
+			root = root.Left()
 		}
 	}
 	return rank + 1
 }
 
-func (thisTree *Treap) Rank(value int) uint32 {
-	return Rank(thisTree.Root, value)
+func (tree *BaseTree) Rank(value int) uint {
+	return Rank(tree.root, value)
 }
 
-func Prev(root *TreapNode, value int) *TreapNode {
-	var result *TreapNode = nil
-	for root != nil {
-		if root.Value < value {
+func Prev(root Noded, value int) Noded {
+	var result Noded = nil
+	for !root.IsNil() {
+		if root.Value() < value {
 			result = root
-			root = root.Right
+			root = root.Right()
 		} else {
-			root = root.Left
+			root = root.Left()
 		}
 	}
 	return result
 }
 
-func (thisTree *Treap) Prev(value int) (int, error) {
-	result := Prev(thisTree.Root, value)
-	if result == nil {
+func (tree *BaseTree) Prev(value int) (int, error) {
+	prev := Prev(tree.root, value)
+	if prev.IsNil() {
 		return int(rune(0)), errors.New("no previous value")
 	}
-	return result.Value, nil
+	return prev.Value(), nil
 }
 
-func Next(root *TreapNode, value int) *TreapNode {
-	var result *TreapNode = nil
-	for root != nil {
-		if root.Value > value {
+func Next(root Noded, value int) Noded {
+	var result Noded = nil
+	for !root.IsNil() {
+		if root.Value() > value {
 			result = root
-			root = root.Left
+			root = root.Left()
 		} else {
-			root = root.Right
+			root = root.Right()
 		}
 	}
 	return result
 }
 
-func (thisTree *Treap) Next(value int) (int, error) {
-	result := Next(thisTree.Root, value)
-	if result == nil {
+func (tree *BaseTree) Next(value int) (int, error) {
+	next := Next(tree.root, value)
+	if next.IsNil() {
 		return int(rune(0)), errors.New("no next value")
 	}
-	return result.Value, nil
+	return next.Value(), nil
+}
+
+func String(root Noded) string {
+	if root.IsNil() {
+		return "null"
+	}
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("[%v, ", root.Value()))
+	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size()))
+	buffer.WriteString(fmt.Sprintf("%v, ", String(root.Left())))
+	buffer.WriteString(fmt.Sprintf("%v]", String(root.Right())))
+	return buffer.String()
+}
+
+func (tree *BaseTree) String() string {
+	return String(tree.root)
+}
+
+func SingleRotate(direction bool, root Noded) Noded {
+	save := root.Child(!direction)
+	root.SetChild(!direction, save.Child(direction))
+	save.SetChild(direction, root)
+	root.Update()
+	save.Update()
+	return save
+}
+
+func LeftRotate(root Noded) Noded {
+	return SingleRotate(true, root)
+}
+
+func RightRotate(root Noded) Noded {
+	return SingleRotate(false, root)
+}
+
+type treapTreeNode struct {
+	*BaseTreeNode
+	weight uint // Random weight
+}
+
+func newTreapTreeNode(value int) *treapTreeNode {
+	n := &treapTreeNode{BaseTreeNode: newBaseTreeNode(value), weight: uint(rand.Uint32())}
+	n.SetLeft((*treapTreeNode)(nil))
+	n.SetRight((*treapTreeNode)(nil))
+	return n
+}
+
+func (n *treapTreeNode) Weight() uint {
+	return n.weight
+}
+
+func (n *treapTreeNode) IsNil() bool {
+	return n == nil
+}
+
+type TreapTree struct {
+	*BaseTree
+}
+
+func New() *TreapTree {
+	tree := &TreapTree{newBaseTree()}
+	tree.SetRoot((*treapTreeNode)(nil))
+	return tree
+}
+
+func insert(root *treapTreeNode, value int) Noded {
+	if root == nil {
+		return newTreapTreeNode(value)
+	}
+	if root.Value() <= value {
+		root.SetRight(insert(root.Right().(*treapTreeNode), value))
+		if root.Right().(*treapTreeNode).Weight() < root.Weight() {
+			root = SingleRotate(false, Noded(root)).(*treapTreeNode)
+		}
+	} else {
+		root.SetLeft(insert(root.Left().(*treapTreeNode), value))
+		if root.Left().(*treapTreeNode).Weight() < root.Weight() {
+			root = SingleRotate(true, Noded(root)).(*treapTreeNode)
+		}
+	}
+	root.Update()
+	return root
+}
+
+func (tree *TreapTree) Insert(value int) {
+	tree.SetRoot(insert(tree.Root().(*treapTreeNode), value))
+}
+
+func delete(root *treapTreeNode, value int) Noded {
+	if root == nil {
+		return nil
+	}
+	if root.Value() == value {
+		if root.Left().IsNil() {
+			return root.Right()
+		}
+		if root.Right().IsNil() {
+			return root.Left()
+		}
+		if root.Left().(*treapTreeNode).Weight() < root.Right().(*treapTreeNode).Weight() {
+			root = SingleRotate(true, Noded(root)).(*treapTreeNode)
+			root.SetRight(delete(root.Right().(*treapTreeNode), value))
+		} else {
+			root = SingleRotate(false, Noded(root)).(*treapTreeNode)
+			root.SetLeft(delete(root.Left().(*treapTreeNode), value))
+		}
+	} else if root.Value() < value {
+		root.SetRight(delete(root.Right().(*treapTreeNode), value))
+	} else {
+		root.SetLeft(delete(root.Left().(*treapTreeNode), value))
+	}
+	root.Update()
+	return root
+}
+
+func (tree *TreapTree) Delete(value int) {
+	tree.SetRoot(delete(tree.Root().(*treapTreeNode), value))
 }
 
 func Read(istream *bufio.Reader) (int, error) {
-	res, sign := 0, 1
+	res, sign := int(0), 1
 	readed := false
 	c, err := istream.ReadByte()
 	for ; err == nil && (c < '0' || c > '9'); c, err = istream.ReadByte() {
@@ -230,6 +433,14 @@ func Read(istream *bufio.Reader) (int, error) {
 		return 0, err
 	}
 	return res * int(sign), err
+}
+
+func ReadWithPanic(gin *bufio.Reader) int {
+	value, err := Read(gin)
+	if err != nil {
+		panic(err)
+	}
+	return value
 }
 
 func main() {
@@ -279,7 +490,7 @@ func main() {
 			}
 		case 4:
 			{
-				kth, err := tree.Kth(uint32(value))
+				kth, err := tree.Kth(uint(value))
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)

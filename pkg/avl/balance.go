@@ -3,16 +3,8 @@ package avltree
 import (
 	"bstrees/internal/math"
 	"bstrees/internal/node"
+	"bstrees/internal/tree"
 )
-
-func singleRotate[T node.Ordered](direction bool, root *avlTreeNode[T]) node.Noded[T] {
-	save := root.Child(!direction)
-	root.SetChild(!direction, save.Child(direction))
-	save.SetChild(direction, root)
-	root.Update()
-	save.Update()
-	return save
-}
 
 func balance[T node.Ordered](root *avlTreeNode[T]) node.Noded[T] {
 	leftHeight := root.Left().(*avlTreeNode[T]).Height()
@@ -24,9 +16,9 @@ func balance[T node.Ordered](root *avlTreeNode[T]) node.Noded[T] {
 		fatherRightHeight := father.Right().(*avlTreeNode[T]).Height()
 		fatherDirection := fatherLeftHeight < fatherRightHeight+1
 		if grandFatherDirection != fatherDirection {
-			root.SetChild(grandFatherDirection, singleRotate(!fatherDirection, father))
+			root.SetChild(grandFatherDirection, tree.SingleRotate(!fatherDirection, node.Noded[T](father)))
 		}
-		return singleRotate(!grandFatherDirection, root)
+		return tree.SingleRotate(grandFatherDirection, node.Noded[T](root))
 	}
 	return root
 }
