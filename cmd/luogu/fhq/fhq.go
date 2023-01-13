@@ -474,21 +474,50 @@ func ReadWithPanic(gin *bufio.Reader) int {
 }
 
 func main() {
+	ans, last := 0, 0
 	tree := New()
 	gin := bufio.NewReader(os.Stdin)
-	n := ReadWithPanic(gin)
+	n, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	m, err := Read(gin)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	for i := 0; i < n; i++ {
-		opt := ReadWithPanic(gin)
-		value := ReadWithPanic(gin)
-		// fmt.Println("----------------")
-		// fmt.Println(opt, value)
+		x, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		tree.Insert(x)
+	}
+	for i := 0; i < m; i++ {
+		opt, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value, err := Read(gin)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		value ^= last
 		switch opt {
 		case 1:
 			tree.Insert(value)
 		case 2:
 			tree.Delete(value)
 		case 3:
-			fmt.Println(tree.Rank(value))
+			{
+				rank := tree.Rank(value)
+				ans ^= int(rank)
+				last = int(rank)
+			}
 		case 4:
 			{
 				kth, err := tree.Kth(uint(value))
@@ -496,29 +525,30 @@ func main() {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= kth
+				last = kth
 			}
 		case 5:
 			{
-				kth, err := tree.Prev(value)
+				prev, err := tree.Prev(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= prev
+				last = prev
 			}
 		case 6:
 			{
-				kth, err := tree.Next(value)
+				next, err := tree.Next(value)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
-				fmt.Println(kth)
+				ans ^= next
+				last = next
 			}
 		}
-		// if opt == 1 || opt == 2 {
-		// 	println(tree.String())
-		// }
 	}
+	fmt.Println(ans)
 }

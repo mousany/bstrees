@@ -10,9 +10,9 @@ type RBTree[T node.Ordered] struct {
 }
 
 func New[T node.Ordered]() *RBTree[T] {
-	tree := &RBTree[T]{tree.New[T]()}
-	tree.SetRoot((*rbTreeNode[T])(nil))
-	return tree
+	tr := &RBTree[T]{tree.New[T]()}
+	tr.SetRoot((*rbTreeNode[T])(nil))
+	return tr
 }
 
 // https://archive.ph/EJTsz, Eternally Confuzzled's Blog
@@ -86,8 +86,8 @@ func insert[T node.Ordered](root *rbTreeNode[T], value T) node.Noded[T] {
 	return root
 }
 
-func (tree *RBTree[T]) Insert(value T) {
-	tree.SetRoot(insert(tree.Root().(*rbTreeNode[T]), value))
+func (tr *RBTree[T]) Insert(value T) {
+	tr.SetRoot(insert(tr.Root().(*rbTreeNode[T]), value))
 }
 
 func delete[T node.Ordered](root *rbTreeNode[T], value T) node.Noded[T] {
@@ -178,6 +178,6 @@ func delete[T node.Ordered](root *rbTreeNode[T], value T) node.Noded[T] {
 	return root
 }
 
-func (tree *RBTree[T]) Delete(value T) {
-	tree.SetRoot(delete(tree.Root().(*rbTreeNode[T]), value))
+func (tr *RBTree[T]) Delete(value T) {
+	tr.SetRoot(delete(tr.Root().(*rbTreeNode[T]), value))
 }

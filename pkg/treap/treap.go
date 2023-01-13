@@ -10,35 +10,35 @@ type TreapTree[T node.Ordered] struct {
 }
 
 func New[T node.Ordered]() *TreapTree[T] {
-	tree := &TreapTree[T]{tree.New[T]()}
-	tree.SetRoot((*treapTreeNode[T])(nil))
-	return tree
+	tr := &TreapTree[T]{tree.New[T]()}
+	tr.SetRoot((*TreapTreeNode[T])(nil))
+	return tr
 }
 
-func insert[T node.Ordered](root *treapTreeNode[T], value T) node.Noded[T] {
+func insert[T node.Ordered](root *TreapTreeNode[T], value T) node.Noded[T] {
 	if root == nil {
-		return newTreapTreeNode(value)
+		return NewTreapTreeNode(value)
 	}
 	if root.Value() <= value {
-		root.SetRight(insert(root.Right().(*treapTreeNode[T]), value))
-		if root.Right().(*treapTreeNode[T]).Weight() < root.Weight() {
-			root = tree.SingleRotate(false, node.Noded[T](root)).(*treapTreeNode[T])
+		root.SetRight(insert(root.Right().(*TreapTreeNode[T]), value))
+		if root.Right().(*TreapTreeNode[T]).Weight() < root.Weight() {
+			root = tree.SingleRotate(false, node.Noded[T](root)).(*TreapTreeNode[T])
 		}
 	} else {
-		root.SetLeft(insert(root.Left().(*treapTreeNode[T]), value))
-		if root.Left().(*treapTreeNode[T]).Weight() < root.Weight() {
-			root = tree.SingleRotate(true, node.Noded[T](root)).(*treapTreeNode[T])
+		root.SetLeft(insert(root.Left().(*TreapTreeNode[T]), value))
+		if root.Left().(*TreapTreeNode[T]).Weight() < root.Weight() {
+			root = tree.SingleRotate(true, node.Noded[T](root)).(*TreapTreeNode[T])
 		}
 	}
 	root.Update()
 	return root
 }
 
-func (tree *TreapTree[T]) Insert(value T) {
-	tree.SetRoot(insert(tree.Root().(*treapTreeNode[T]), value))
+func (tr *TreapTree[T]) Insert(value T) {
+	tr.SetRoot(insert(tr.Root().(*TreapTreeNode[T]), value))
 }
 
-func delete[T node.Ordered](root *treapTreeNode[T], value T) node.Noded[T] {
+func delete[T node.Ordered](root *TreapTreeNode[T], value T) node.Noded[T] {
 	if root == nil {
 		return nil
 	}
@@ -49,22 +49,22 @@ func delete[T node.Ordered](root *treapTreeNode[T], value T) node.Noded[T] {
 		if root.Right().IsNil() {
 			return root.Left()
 		}
-		if root.Left().(*treapTreeNode[T]).Weight() < root.Right().(*treapTreeNode[T]).Weight() {
-			root = tree.SingleRotate(true, node.Noded[T](root)).(*treapTreeNode[T])
-			root.SetRight(delete(root.Right().(*treapTreeNode[T]), value))
+		if root.Left().(*TreapTreeNode[T]).Weight() < root.Right().(*TreapTreeNode[T]).Weight() {
+			root = tree.SingleRotate(true, node.Noded[T](root)).(*TreapTreeNode[T])
+			root.SetRight(delete(root.Right().(*TreapTreeNode[T]), value))
 		} else {
-			root = tree.SingleRotate(false, node.Noded[T](root)).(*treapTreeNode[T])
-			root.SetLeft(delete(root.Left().(*treapTreeNode[T]), value))
+			root = tree.SingleRotate(false, node.Noded[T](root)).(*TreapTreeNode[T])
+			root.SetLeft(delete(root.Left().(*TreapTreeNode[T]), value))
 		}
 	} else if root.Value() < value {
-		root.SetRight(delete(root.Right().(*treapTreeNode[T]), value))
+		root.SetRight(delete(root.Right().(*TreapTreeNode[T]), value))
 	} else {
-		root.SetLeft(delete(root.Left().(*treapTreeNode[T]), value))
+		root.SetLeft(delete(root.Left().(*TreapTreeNode[T]), value))
 	}
 	root.Update()
 	return root
 }
 
-func (tree *TreapTree[T]) Delete(value T) {
-	tree.SetRoot(delete(tree.Root().(*treapTreeNode[T]), value))
+func (tr *TreapTree[T]) Delete(value T) {
+	tr.SetRoot(delete(tr.Root().(*TreapTreeNode[T]), value))
 }

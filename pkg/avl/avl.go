@@ -10,9 +10,9 @@ type AVLTree[T node.Ordered] struct {
 }
 
 func New[T node.Ordered]() *AVLTree[T] {
-	tree := &AVLTree[T]{tree.New[T]()}
-	tree.SetRoot((*avlTreeNode[T])(nil))
-	return tree
+	tr := &AVLTree[T]{tree.New[T]()}
+	tr.SetRoot((*avlTreeNode[T])(nil))
+	return tr
 }
 
 func insert[T node.Ordered](root *avlTreeNode[T], value T) node.Noded[T] {
@@ -28,8 +28,8 @@ func insert[T node.Ordered](root *avlTreeNode[T], value T) node.Noded[T] {
 	return balance(root)
 }
 
-func (tree *AVLTree[T]) Insert(value T) {
-	tree.SetRoot(insert(tree.Root().(*avlTreeNode[T]), value))
+func (tr *AVLTree[T]) Insert(value T) {
+	tr.SetRoot(insert(tr.Root().(*avlTreeNode[T]), value))
 }
 
 func delete[T node.Ordered](root *avlTreeNode[T], value T) node.Noded[T] {
@@ -55,6 +55,6 @@ func delete[T node.Ordered](root *avlTreeNode[T], value T) node.Noded[T] {
 	return balance(root)
 }
 
-func (tree *AVLTree[T]) Delete(value T) {
-	tree.SetRoot(delete(tree.Root().(*avlTreeNode[T]), value))
+func (tr *AVLTree[T]) Delete(value T) {
+	tr.SetRoot(delete(tr.Root().(*avlTreeNode[T]), value))
 }

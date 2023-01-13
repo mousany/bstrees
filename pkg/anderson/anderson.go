@@ -10,11 +10,11 @@ type AndersonTree[T node.Ordered] struct {
 }
 
 func New[T node.Ordered]() *AndersonTree[T] {
-	tree := &AndersonTree[T]{
+	tr := &AndersonTree[T]{
 		BaseTree: tree.New[T](),
 	}
-	tree.SetRoot((*andersonTreeNode[T])(nil))
-	return tree
+	tr.SetRoot((*andersonTreeNode[T])(nil))
+	return tr
 }
 
 func insert[T node.Ordered](root *andersonTreeNode[T], value T) node.Noded[T] {
@@ -32,8 +32,8 @@ func insert[T node.Ordered](root *andersonTreeNode[T], value T) node.Noded[T] {
 	return root
 }
 
-func (tree *AndersonTree[T]) Insert(value T) {
-	tree.SetRoot(insert(tree.Root().(*andersonTreeNode[T]), value))
+func (tr *AndersonTree[T]) Insert(value T) {
+	tr.SetRoot(insert(tr.Root().(*andersonTreeNode[T]), value))
 }
 
 func delete[T node.Ordered](root *andersonTreeNode[T], value T) node.Noded[T] {
@@ -70,6 +70,6 @@ func delete[T node.Ordered](root *andersonTreeNode[T], value T) node.Noded[T] {
 	return root
 }
 
-func (tree *AndersonTree[T]) Delete(value T) {
-	tree.SetRoot(delete(tree.Root().(*andersonTreeNode[T]), value))
+func (tr *AndersonTree[T]) Delete(value T) {
+	tr.SetRoot(delete(tr.Root().(*andersonTreeNode[T]), value))
 }
