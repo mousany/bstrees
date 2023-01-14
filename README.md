@@ -41,5 +41,8 @@ func main() {
 }
 ```
 
+## Production
+It might be better to try bstrees out on a hobby project first. Bstrees does not aim to be a production-ready library. It is migrated from some ACM contest code and is still having performance issues. And there is not guaranteed to be bug-free and the API might change in the future. However, it will be a good choice for you to learn about binary search trees.
+
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
