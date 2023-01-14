@@ -58,3 +58,19 @@ func delete[T node.Ordered](root *avlTreeNode[T], value T) node.Noded[T] {
 func (tr *AVLTree[T]) Delete(value T) {
 	tr.SetRoot(delete(tr.Root().(*avlTreeNode[T]), value))
 }
+
+func fromSlice[T node.Ordered](slice []T) *avlTreeNode[T] {
+	if len(slice) == 0 {
+		return nil
+	}
+	mid := len(slice) / 2
+	root := newAvlTreeNode(slice[mid])
+	root.SetLeft(fromSlice(slice[:mid]))
+	root.SetRight(fromSlice(slice[mid+1:]))
+	root.Update()
+	return root
+}
+
+func (tr *AVLTree[T]) FromSlice(slice []T) {
+	tr.SetRoot(fromSlice(slice))
+}

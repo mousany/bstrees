@@ -65,3 +65,19 @@ func (tr *FHQTree[T]) Next(value T) (T, error) {
 	}
 	return result.Value(), nil
 }
+
+func fromSlice[T node.Ordered](slice []T) *treap.TreapTreeNode[T] {
+	if len(slice) == 0 {
+		return nil
+	}
+	mid := len(slice) / 2
+	root := treap.NewTreapTreeNode(slice[mid])
+	root.SetLeft(fromSlice(slice[:mid]))
+	root.SetRight(fromSlice(slice[mid+1:]))
+	root.Update()
+	return root
+}
+
+func (tr *FHQTree[T]) FromSlice(slice []T) {
+	tr.SetRoot(fromSlice(slice))
+}

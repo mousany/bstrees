@@ -132,8 +132,8 @@ func (tr *SplayTree[T]) Kth(k uint) (T, error) {
 }
 
 func (tr *SplayTree[T]) Rank(value T) uint {
-	p := tree.Find(tr.Root(), value).(*splayTreeNode[T])
-	if p == nil {
+	p := tree.Find(tr.Root(), value)
+	if tree.IsNil(p) {
 		prev := tree.Prev(tr.Root(), value).(*splayTreeNode[T])
 		if prev != nil {
 			splayRotate(prev, tr.Root().(*splayTreeNode[T]))
@@ -144,7 +144,7 @@ func (tr *SplayTree[T]) Rank(value T) uint {
 		}
 		return 1
 	}
-	splayRotate(p, tr.Root().(*splayTreeNode[T]))
+	splayRotate(p.(*splayTreeNode[T]), tr.Root().(*splayTreeNode[T]))
 	if !p.Left().IsNil() {
 		return p.Left().Size() + 1
 	}
@@ -167,7 +167,7 @@ func (tr *SplayTree[T]) Clear() {
 }
 
 func (tr *SplayTree[T]) Contains(value T) bool {
-	return tree.Find(tr.Root(), value) != nil
+	return !tree.IsNil(tree.Find(tr.Root(), value))
 }
 
 func (tr *SplayTree[T]) Prev(value T) (T, error) {
@@ -188,4 +188,8 @@ func (tr *SplayTree[T]) Next(value T) (T, error) {
 
 func (tr *SplayTree[T]) String() string {
 	return tree.String(tr.Root())
+}
+
+func (tr *SplayTree[T]) ToSlice() []T {
+	return tree.ToSlice(tr.Root())
 }

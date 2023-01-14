@@ -88,7 +88,7 @@ func Find[T node.Ordered](root node.Noded[T], value T) node.Noded[T] {
 }
 
 func (tree *BaseTree[T]) Contains(value T) bool {
-	return !Find(tree.root, value).IsNil()
+	return !IsNil(Find(tree.root, value))
 }
 
 func Kth[T node.Ordered](root node.Noded[T], k uint) node.Noded[T] {
@@ -193,6 +193,21 @@ func String[T node.Ordered](root node.Noded[T]) string {
 
 func (tree *BaseTree[T]) String() string {
 	return String(tree.root)
+}
+
+func ToSlice[T node.Ordered](root node.Noded[T]) []T {
+	if root.IsNil() {
+		return []T{}
+	}
+	var result []T
+	result = append(result, ToSlice(root.Left())...)
+	result = append(result, root.Value())
+	result = append(result, ToSlice(root.Right())...)
+	return result
+}
+
+func (tree *BaseTree[T]) ToSlice() []T {
+	return ToSlice(tree.root)
 }
 
 func CheckBSTProperty[T node.Ordered](root node.Noded[T]) error {

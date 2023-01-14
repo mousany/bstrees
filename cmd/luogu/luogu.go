@@ -214,7 +214,7 @@ func Find(root Noded, value int) Noded {
 }
 
 func (tree *BaseTree) Contains(value int) bool {
-	return !Find(tree.root, value).IsNil()
+	return !IsNil(Find(tree.root, value))
 }
 
 func Kth(root Noded, k uint) Noded {
@@ -528,8 +528,8 @@ func (tr *SplayTree) Kth(k uint) (int, error) {
 }
 
 func (tr *SplayTree) Rank(value int) uint {
-	p := Find(tr.Root(), value).(*splayTreeNode)
-	if p == nil {
+	p := Find(tr.Root(), value)
+	if IsNil(p) {
 		prev := Prev(tr.Root(), value).(*splayTreeNode)
 		if prev != nil {
 			splayRotate(prev, tr.Root().(*splayTreeNode))
@@ -540,7 +540,7 @@ func (tr *SplayTree) Rank(value int) uint {
 		}
 		return 1
 	}
-	splayRotate(p, tr.Root().(*splayTreeNode))
+	splayRotate(p.(*splayTreeNode), tr.Root().(*splayTreeNode))
 	if !p.Left().IsNil() {
 		return p.Left().Size() + 1
 	}
@@ -563,7 +563,7 @@ func (tr *SplayTree) Clear() {
 }
 
 func (tr *SplayTree) Contains(value int) bool {
-	return Find(tr.Root(), value) != nil
+	return IsNil(Find(tr.Root(), value))
 }
 
 func (tr *SplayTree) Prev(value int) (int, error) {

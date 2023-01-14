@@ -68,3 +68,19 @@ func delete[T node.Ordered](root *TreapTreeNode[T], value T) node.Noded[T] {
 func (tr *TreapTree[T]) Delete(value T) {
 	tr.SetRoot(delete(tr.Root().(*TreapTreeNode[T]), value))
 }
+
+func fromSlice[T node.Ordered](slice []T) *TreapTreeNode[T] {
+	if len(slice) == 0 {
+		return nil
+	}
+	mid := len(slice) / 2
+	root := NewTreapTreeNode(slice[mid])
+	root.SetLeft(fromSlice(slice[:mid]))
+	root.SetRight(fromSlice(slice[mid+1:]))
+	root.Update()
+	return root
+}
+
+func (tr *TreapTree[T]) FromSlice(slice []T) {
+	tr.SetRoot(fromSlice(slice))
+}
