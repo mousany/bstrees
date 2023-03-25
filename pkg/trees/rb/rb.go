@@ -6,11 +6,11 @@ import (
 )
 
 type RBTree[T order.Ordered] struct {
-	Root *rbTreeNode[T]
+	root *rbTreeNode[T]
 }
 
 func New[T order.Ordered]() *RBTree[T] {
-	return &RBTree[T]{Root: nil}
+	return &RBTree[T]{root: nil}
 }
 
 func kth[T order.Ordered](root *rbTreeNode[T], k uint) *rbTreeNode[T] {
@@ -101,7 +101,7 @@ func insert[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 }
 
 func (t *RBTree[T]) Insert(value T) {
-	t.Root = insert(t.Root, value)
+	t.root = insert(t.root, value)
 }
 
 func find[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
@@ -118,7 +118,7 @@ func find[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 }
 
 func (t *RBTree[T]) Contains(value T) bool {
-	return find(t.Root, value) != nil
+	return find(t.root, value) != nil
 }
 
 func delete[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
@@ -210,18 +210,18 @@ func delete[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 }
 
 func (t *RBTree[T]) Delete(value T) {
-	t.Root = delete(t.Root, value)
+	t.root = delete(t.root, value)
 }
 
 func (t *RBTree[T]) Size() uint {
-	if t.Root == nil {
+	if t.root == nil {
 		return 0
 	}
-	return t.Root.size
+	return t.root.size
 }
 
 func (t *RBTree[T]) Kth(k uint) (T, error) {
-	result := kth(t.Root, k)
+	result := kth(t.root, k)
 	if result == nil {
 		return T(rune(0)), errors.ErrOutOfRange
 	}
@@ -229,11 +229,11 @@ func (t *RBTree[T]) Kth(k uint) (T, error) {
 }
 
 func (t *RBTree[T]) Empty() bool {
-	return t.Root == nil
+	return t.root == nil
 }
 
 func (t *RBTree[T]) Clear() {
-	t.Root = nil
+	t.root = nil
 }
 
 func rank[T order.Ordered](root *rbTreeNode[T], value T) uint {
@@ -253,7 +253,7 @@ func rank[T order.Ordered](root *rbTreeNode[T], value T) uint {
 }
 
 func (t *RBTree[T]) Rank(value T) uint {
-	return rank(t.Root, value)
+	return rank(t.root, value)
 }
 
 func prev[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
@@ -270,7 +270,7 @@ func prev[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 }
 
 func (t *RBTree[T]) Prev(value T) (T, error) {
-	prev := prev(t.Root, value)
+	prev := prev(t.root, value)
 	if prev == nil {
 		return T(rune(0)), errors.ErrNoPrevValue
 	}
@@ -291,7 +291,7 @@ func next[T order.Ordered](root *rbTreeNode[T], value T) *rbTreeNode[T] {
 }
 
 func (t *RBTree[T]) Next(value T) (T, error) {
-	next := next(t.Root, value)
+	next := next(t.root, value)
 	if next == nil {
 		return T(rune(0)), errors.ErrNoNextValue
 	}
