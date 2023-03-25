@@ -1,156 +1,120 @@
 package anderson
 
 import (
-	"bstrees/pkg/anderson/node"
+	"bstrees/internal/order"
 	"bstrees/pkg/errors"
-	"bstrees/pkg/trait/ordered"
 )
 
-type Anderson[T ordered.Ordered] struct {
-	Root *node.AndersonNode[T]
+type AndersonTree[T order.Ordered] struct {
+	root *andersonTreeNode[T]
 }
 
-func New[T ordered.Ordered]() Anderson[T] {
-	return Anderson[T]{Root: nil}
+func New[T order.Ordered]() AndersonTree[T] {
+	return AndersonTree[T]{root: nil}
 }
 
-func LeftRotate[T ordered.Ordered](root *node.AndersonNode[T]) *node.AndersonNode[T] {
-	right := root.Right
-	root.Right = right.Left
-	right.Left = root
-	root.Update()
-	right.Update()
-	return right
-}
-
-func RightRotate[T ordered.Ordered](root *node.AndersonNode[T]) *node.AndersonNode[T] {
-	left := root.Left
-	root.Left = left.Right
-	left.Right = root
-	root.Update()
-	left.Update()
-	return left
-}
-
-func Skew[T ordered.Ordered](root *node.AndersonNode[T]) *node.AndersonNode[T] {
-	// Print(root)
-	if root.Left == nil || root.Left.Level != root.Level {
-		return root
-	}
-	return RightRotate(root)
-}
-
-func Split[T ordered.Ordered](root *node.AndersonNode[T]) *node.AndersonNode[T] {
-	if root.Right == nil || root.Right.Right == nil || root.Right.Right.Level != root.Level {
-		return root
-	}
-	root = LeftRotate(root)
-	root.Level += 1
-	return root
-}
-
-func Insert[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.AndersonNode[T] {
+func insert[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNode[T] {
 	if root == nil {
-		return node.New(value, 1)
+		return newAndersonTreeNode(value, 1)
 	}
-	if value < root.Value {
-		root.Left = Insert(root.Left, value)
+	if value < root.value {
+		root.left = insert(root.left, value)
 	} else {
-		root.Right = Insert(root.Right, value)
+		root.right = insert(root.right, value)
 	}
 	root.Update()
-	root = Skew(root)
-	root = Split(root)
+	root = skew(root)
+	root = split(root)
 	return root
 }
 
-func Delete[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.AndersonNode[T] {
+func delete[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNode[T] {
 	if root == nil {
 		return nil
 	}
-	if value < root.Value {
-		root.Left = Delete(root.Left, value)
-	} else if value > root.Value {
-		root.Right = Delete(root.Right, value)
+	if value < root.value {
+		root.left = delete(root.left, value)
+	} else if value > root.value {
+		root.right = delete(root.right, value)
 	} else {
-		if root.Left == nil {
-			return root.Right
-		} else if root.Right == nil {
-			return root.Left
+		if root.left == nil {
+			return root.right
+		} else if root.right == nil {
+			return root.left
 		} else {
-			minNode := Kth(root.Right, 1)
-			root.Value = minNode.Value
-			root.Right = Delete(root.Right, minNode.Value)
+			minNode := kth(root.right, 1)
+			root.value = minNode.value
+			root.right = delete(root.right, minNode.value)
 		}
 	}
 	root.Update()
-	if (root.Left != nil && root.Left.Level < root.Level-1) ||
-		(root.Right != nil && root.Right.Level < root.Level-1) {
-		root.Level -= 1
-		if root.Right != nil && root.Right.Level > root.Level {
-			root.Right.Level = root.Level
+	if (root.left != nil && root.left.level < root.level-1) ||
+		(root.right != nil && root.right.level < root.level-1) {
+		root.level -= 1
+		if root.right != nil && root.right.level > root.level {
+			root.right.level = root.level
 		}
-		root = Skew(root)
-		root = Split(root)
+		root = skew(root)
+		root = split(root)
 	}
 	return root
 }
 
-func Kth[T ordered.Ordered](root *node.AndersonNode[T], k uint32) *node.AndersonNode[T] {
+func kth[T order.Ordered](root *andersonTreeNode[T], k uint) *andersonTreeNode[T] {
 	for root != nil {
-		leftSize := uint32(0)
-		if root.Left != nil {
-			leftSize = root.Left.Size
+		leftSize := uint(0)
+		if root.left != nil {
+			leftSize = root.left.size
 		}
 		if leftSize+1 == k {
 			return root
 		} else if leftSize+1 < k {
 			k -= leftSize + 1
-			root = root.Right
+			root = root.right
 		} else {
-			root = root.Left
+			root = root.left
 		}
 	}
 	return nil
 }
 
-func (tree *Anderson[T]) Insert(value T) {
-	tree.Root = Insert(tree.Root, value)
+func (t *AndersonTree[T]) Insert(value T) {
+	t.root = insert(t.root, value)
 }
 
-func (tree *Anderson[T]) Delete(value T) {
-	tree.Root = Delete(tree.Root, value)
+func (t *AndersonTree[T]) Delete(value T) {
+	t.root = delete(t.root, value)
 }
 
-func (tree *Anderson[T]) Kth(k uint32) (T, error) {
-	root := Kth(tree.Root, k)
+func (t *AndersonTree[T]) Kth(k uint) (T, error) {
+	root := kth(t.root, k)
 	if root == nil {
 		return T(rune(0)), errors.ErrOutOfRange
 	}
-	return root.Value, nil
+	return root.value, nil
 }
 
-func (tree *Anderson[T]) Size() uint32 {
-	if tree.Root == nil {
+func (t *AndersonTree[T]) Size() uint {
+	if t.root == nil {
 		return 0
 	}
-	return tree.Root.Size
+	return t.root.size
 }
 
-func (tree *Anderson[T]) Empty() bool {
-	return tree.Root == nil
+func (t *AndersonTree[T]) Empty() bool {
+	return t.root == nil
 }
 
-func (tree *Anderson[T]) Clear() {
-	tree.Root = nil
+func (t *AndersonTree[T]) Clear() {
+	t.root = nil
 }
 
-func Find[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.AndersonNode[T] {
+func Find[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNode[T] {
 	for root != nil {
-		if value < root.Value {
-			root = root.Left
-		} else if root.Value < value {
-			root = root.Right
+		if value < root.value {
+			root = root.left
+		} else if root.value < value {
+			root = root.right
 		} else {
 			return root
 		}
@@ -158,90 +122,68 @@ func Find[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.Anderson
 	return nil
 }
 
-func (tree *Anderson[T]) Contains(value T) bool {
-	return Find(tree.Root, value) != nil
+func (t *AndersonTree[T]) Contains(value T) bool {
+	return Find(t.root, value) != nil
 }
 
-func Rank[T ordered.Ordered](root *node.AndersonNode[T], value T) uint32 {
-	rank := uint32(0)
+func Rank[T order.Ordered](root *andersonTreeNode[T], value T) uint {
+	rank := uint(0)
 	for root != nil {
-		if root.Value < value {
+		if root.value < value {
 			rank += 1
-			if root.Left != nil {
-				rank += root.Left.Size
+			if root.left != nil {
+				rank += root.left.size
 			}
-			root = root.Right
+			root = root.right
 		} else {
-			root = root.Left
+			root = root.left
 		}
 	}
 	return rank + 1
 }
 
-func (thisTree *Anderson[T]) Rank(value T) uint32 {
-	return Rank(thisTree.Root, value)
+func (t *AndersonTree[T]) Rank(value T) uint {
+	return Rank(t.root, value)
 }
 
-func Prev[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.AndersonNode[T] {
-	var prev *node.AndersonNode[T] = nil
+func Prev[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNode[T] {
+	var prev *andersonTreeNode[T] = nil
 	for root != nil {
-		if root.Value < value {
+		if root.value < value {
 			prev = root
-			root = root.Right
+			root = root.right
 		} else {
-			root = root.Left
+			root = root.left
 		}
 	}
 	return prev
 }
 
-func (thisTree *Anderson[T]) Prev(value T) (T, error) {
-	prev := Prev(thisTree.Root, value)
+func (t *AndersonTree[T]) Prev(value T) (T, error) {
+	prev := Prev(t.root, value)
 	if prev == nil {
 		return T(rune(0)), errors.ErrNoPrevValue
 	}
-	return prev.Value, nil
+	return prev.value, nil
 }
 
-func Next[T ordered.Ordered](root *node.AndersonNode[T], value T) *node.AndersonNode[T] {
-	var next *node.AndersonNode[T] = nil
+func Next[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNode[T] {
+	var next *andersonTreeNode[T] = nil
 	for root != nil {
-		if root.Value > value {
+		if root.value > value {
 			next = root
-			root = root.Left
+			root = root.left
 		} else {
-			root = root.Right
+			root = root.right
 		}
 	}
 	return next
 }
 
-func (thisTree *Anderson[T]) Next(value T) (T, error) {
-	prev := Next(thisTree.Root, value)
+func (t *AndersonTree[T]) Next(value T) (T, error) {
+	prev := Next(t.root, value)
 	if prev == nil {
 		return T(rune(0)), errors.ErrNoNextValue
 	}
-	return prev.Value, nil
+	return prev.value, nil
 }
-
-// func Print[T ordered.Ordered](root *node.AndersonNode[T]) string {
-// 	if root == nil {
-// 		return "null"
-// 	}
-// 	var buffer bytes.Buffer
-// 	buffer.WriteString(fmt.Sprintf("[%v", root.Value))
-// 	// if root.Red() {
-// 	// 	buffer.WriteString("1, ")
-// 	// } else {
-// 	// 	buffer.WriteString("0, ")
-// 	// }
-// 	buffer.WriteString(fmt.Sprintf(".%v, ", root.Size))
-// 	// buffer.WriteString(fmt.Sprintf("%v, ", root.Size))
-// 	buffer.WriteString(fmt.Sprintf("%v, ", Print(root.Left)))
-// 	buffer.WriteString(fmt.Sprintf("%v]", Print(root.Right)))
-// 	return buffer.String()
-// }
-
-// func (thisTree *Anderson[T]) Print() {
-// 	fmt.Println(Print(thisTree.Root))
-// }
