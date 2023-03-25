@@ -32,22 +32,6 @@ func Kth[T ordered.Ordered](root *node.RBNode[T], k uint32) *node.RBNode[T] {
 	return nil
 }
 
-func SingleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node.RBNode[T] {
-	save := root.Child(!direction)
-	root.SetChild(!direction, save.Child(direction))
-	save.SetChild(direction, root)
-	root.Update()
-	save.Update()
-	root.Color = node.Red
-	save.Color = node.Black
-	return save
-}
-
-func DoubleRotate[T ordered.Ordered](root *node.RBNode[T], direction bool) *node.RBNode[T] {
-	root.SetChild(!direction, SingleRotate(root.Child(!direction), !direction))
-	return SingleRotate(root, direction)
-}
-
 // https://archive.ph/EJTsz, Eternally Confuzzled's Blog
 func Insert[T ordered.Ordered](root *node.RBNode[T], value T) *node.RBNode[T] {
 	if root == nil {

@@ -22,7 +22,7 @@ func insert[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNo
 	} else {
 		root.right = insert(root.right, value)
 	}
-	root.Update()
+	root.update()
 	root = skew(root)
 	root = split(root)
 	return root
@@ -47,7 +47,7 @@ func delete[T order.Ordered](root *andersonTreeNode[T], value T) *andersonTreeNo
 			root.right = delete(root.right, minNode.value)
 		}
 	}
-	root.Update()
+	root.update()
 	if (root.left != nil && root.left.level < root.level-1) ||
 		(root.right != nil && root.right.level < root.level-1) {
 		root.level -= 1

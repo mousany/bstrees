@@ -6,8 +6,8 @@ func leftRotate[T order.Ordered](root *andersonTreeNode[T]) *andersonTreeNode[T]
 	right := root.right
 	root.right = right.left
 	right.left = root
-	root.Update()
-	right.Update()
+	root.update()
+	right.update()
 	return right
 }
 
@@ -15,8 +15,8 @@ func rightRotate[T order.Ordered](root *andersonTreeNode[T]) *andersonTreeNode[T
 	left := root.left
 	root.left = left.right
 	left.right = root
-	root.Update()
-	left.Update()
+	root.update()
+	left.update()
 	return left
 }
 

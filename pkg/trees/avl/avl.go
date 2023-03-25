@@ -40,7 +40,7 @@ func insert[T order.Ordered](root *avlTreeNode[T], value T) *avlTreeNode[T] {
 	} else {
 		root.right = insert(root.right, value)
 	}
-	root.Update()
+	root.update()
 	return balance(root)
 }
 
@@ -67,7 +67,7 @@ func delete[T order.Ordered](root *avlTreeNode[T], value T) *avlTreeNode[T] {
 			root.right = delete(root.right, minNode.value)
 		}
 	}
-	root.Update()
+	root.update()
 	return balance(root)
 }
 

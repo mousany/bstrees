@@ -20,35 +20,12 @@ func newAndersonTreeNode[T order.Ordered](value T, level uint) *andersonTreeNode
 	}
 }
 
-func (n *andersonTreeNode[T]) Update() {
+func (n *andersonTreeNode[T]) update() {
 	n.size = 1
 	if n.left != nil {
 		n.size += n.left.size
 	}
 	if n.right != nil {
 		n.size += n.right.size
-	}
-}
-
-func (n *andersonTreeNode[T]) Leaf() bool {
-	return n.left == nil && n.right == nil
-}
-
-func (n *andersonTreeNode[T]) Full() bool {
-	return n.left != nil && n.right != nil
-}
-
-func (n *andersonTreeNode[T]) Child(direction bool) *andersonTreeNode[T] {
-	if direction {
-		return n.right
-	}
-	return n.left
-}
-
-func (n *andersonTreeNode[T]) SetChild(child *andersonTreeNode[T], direction bool) {
-	if direction {
-		n.right = child
-	} else {
-		n.left = child
 	}
 }
