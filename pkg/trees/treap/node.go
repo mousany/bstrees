@@ -1,7 +1,7 @@
 package treap
 
 import (
-	"bstrees/internal/order"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
 	"math/rand"
 )
 

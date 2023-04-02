@@ -1,6 +1,6 @@
 package rb
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 type rbColor bool
 

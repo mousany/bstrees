@@ -1,6 +1,6 @@
 package treap
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 func leftRotate[T order.Ordered](root *treapTreeNode[T]) *treapTreeNode[T] {
 	right := root.right

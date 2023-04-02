@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bstrees/pkg/trees/treap"
+	"github.com/yanglinshu/bstrees/v2/pkg/trees/treap"
 	"bufio"
 	"fmt"
 	"os"

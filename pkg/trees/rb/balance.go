@@ -1,7 +1,7 @@
 package rb
 
 import (
-	"bstrees/internal/order"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
 )
 
 func singleRotate[T order.Ordered](root *rbTreeNode[T], direction bool) *rbTreeNode[T] {

@@ -1,8 +1,8 @@
 package treap
 
 import (
-	"bstrees/internal/order"
-	"bstrees/pkg/errors"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
+	"github.com/yanglinshu/bstrees/v2/pkg/errors"
 )
 
 type TreapTree[T order.Ordered] struct {

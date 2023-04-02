@@ -1,6 +1,6 @@
 package math
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 func Min[T order.Number](args ...T) T {
 	min := args[0]

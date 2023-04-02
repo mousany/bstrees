@@ -1,6 +1,6 @@
 package scapegoat
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 type nodeState bool
 

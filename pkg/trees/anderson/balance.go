@@ -1,6 +1,6 @@
 package anderson
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 func leftRotate[T order.Ordered](root *andersonTreeNode[T]) *andersonTreeNode[T] {
 	right := root.right

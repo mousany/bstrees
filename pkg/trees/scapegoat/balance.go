@@ -1,7 +1,7 @@
 package scapegoat
 
 import (
-	"bstrees/internal/order"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
 )
 
 func toSlice[T order.Number](root *scapeGoatTreeNode[T]) []*scapeGoatTreeNode[T] {

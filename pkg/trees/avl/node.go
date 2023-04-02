@@ -1,8 +1,8 @@
 package avl
 
 import (
-	"bstrees/internal/math"
-	"bstrees/internal/order"
+	"github.com/yanglinshu/bstrees/v2/internal/math"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
 )
 
 type avlTreeNode[T order.Ordered] struct {

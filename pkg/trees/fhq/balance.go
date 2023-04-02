@@ -1,7 +1,7 @@
 package fhq
 
 import (
-	"bstrees/internal/order"
+	"github.com/yanglinshu/bstrees/v2/internal/order"
 )
 
 func merge[T order.Number](left *fhqTreeNode[T], right *fhqTreeNode[T]) *fhqTreeNode[T] {

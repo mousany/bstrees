@@ -1,6 +1,6 @@
 package splay
 
-import "bstrees/internal/order"
+import "github.com/yanglinshu/bstrees/v2/internal/order"
 
 type splayTreeNode[T order.Ordered] struct {
 	value  T
