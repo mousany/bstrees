@@ -1,15 +1,15 @@
-# BSTrees: Go implementation of some Binary Search Trees
+# BSTrees: Implementation of Binary Search Tree algorithms in Go
 
-This repository contains the implementation of some Binary Search Trees in Go. Those trees are tested on the [template problem](https://www.luogu.com.cn/problem/P3369) and the [enhanced template problem](https://www.luogu.com.cn/problem/P6136) of [Luogu](https://www.luogu.com.cn/).
+This repository contains implementation of Binary Search Trees algorithms in Go. Those trees are tested on the [template problem](https://www.luogu.com.cn/problem/P3369) and the [enhanced template problem](https://www.luogu.com.cn/problem/P6136) of [Luogu](https://www.luogu.com.cn/).
 
 ## Usage
 All the trees are implemented in the `bstree` package. The `bstree` package contains the following trees:
 - `bstree.avl.AVLTree`: AVL Tree
 - `bstree.rb.RBTree`: Red-Black Tree
 - `bstree.anderson.AndersonTree`: Anderson Tree
-- `bstree.treap.TreapTree`: Treap
-- `bstree.fhq.FHQTree`: FHQ Rotateless Treap
-- `bstree.splay.SplayTree`: Splay Tree
+- `bstree.treap.Treap`: Treap
+- `bstree.fhq.FHQTreap`: FHQ Rotateless Treap
+- `bstree.splay.Splay`: Splay Tree
 - `bstree.scapegoat.ScapegoatTree`: Scapegoat Tree
 
 These trees are implemented in the same way and share an uniform interface. Here is an example of using the `bstree.avl.AVLTree`:
@@ -18,7 +18,7 @@ package main
 
 import (
     "fmt"
-    "github.com/yanglinshu/bstrees/pkg/trees/avl"
+    "github.com/yanglinshu/bstrees/avl"
 )
 
 func main() {
@@ -34,10 +34,10 @@ func main() {
     tree.Insert(9)
     tree.Insert(10)
     tree.Delete(5)
-    tree.Rank(6) // Output: 5
-    tree.Kth(5) // Output: 6
-    tree.Prev(6) // Output: 4
-    tree.Next(6) // Output: 7
+    tree.Index(6) // Output: 5
+    tree.At(5) // Output: 6
+    tree.Predecessor(6) // Output: 4
+    tree.Successor(6) // Output: 7
 }
 ```
 
